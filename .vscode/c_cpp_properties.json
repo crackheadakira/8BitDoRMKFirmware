@@ -1,0 +1,19 @@
+{
+    "configurations": [
+        {
+            "name": "TLSR827x",
+            "compilerPath": "${workspaceFolder}/../tc32/bin/tc32-elf-gcc",
+            "intelliSenseMode": "linux-gcc-x64",
+            "cStandard": "gnu99",
+            "includePath": [
+                "${workspaceFolder}/src",
+                "${workspaceFolder}/../tc_ble_single_sdk/tc_ble_single_sdk/**"
+            ],
+            "defines": ["CHIP_TYPE=CHIP_TYPE_827x"],
+            "browse": {
+                "limitSymbolsToIncludedHeaders": false
+            }
+        }
+    ],
+    "version": 4
+}

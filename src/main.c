@@ -1,8 +1,10 @@
 #include "drivers/B87/driver.h"
+#include "drivers/B87/gpio.h"
 #include "tl_common.h"
 #include "drivers.h"
 #include "stack/ble/ble.h"
 #include "stdint.h"
+#include "connection.h"
 
 typedef struct
 {
@@ -29,7 +31,7 @@ uint8_t saved_conn_mode;
 uint8_t saved_profile_id;
 uint8_t saved_sleep_state;
 
-bool is_cold_boot; // Maps to Ghidra's *reg_system_tick_ptr == 0
+bool is_cold_boot;
 
 void irq_handler(void)
 {
@@ -41,8 +43,17 @@ void ble_stack_param_init(void)
 
 int main(void)
 {
-    cpu_wakeup_init(LDO_MODE, INTERNAL_CAP_XTAL24M);
-    clock_init(SYS_CLK_16M_Crystal);
+    cpu_wakeup_init(DCDC_MODE, INTERNAL_CAP_XTAL24M);
+    clock_init(SYS_CLK_24M_Crystal);
+
+    gpio_init(0);
+
+    is_cold_boot = (pm_is_MCU_deepRetentionWakeup() == 0);
+
+    if (is_cold_boot)
+    {
+        conn_mode_init();
+    }
 
     while (1)
     {

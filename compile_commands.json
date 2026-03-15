@@ -1,5 +1,61 @@
 [
   {
+    "file": "src/app_battery.c",
+    "arguments": [
+      "tc32-elf-gcc",
+      "-ffunction-sections",
+      "-fdata-sections",
+      "-Wall",
+      "-O2",
+      "-fpack-struct",
+      "-fshort-enums",
+      "-finline-small-functions",
+      "-std=gnu99",
+      "-fshort-wchar",
+      "-fms-extensions",
+      "-DCHIP_TYPE=CHIP_TYPE_827x",
+      "-I../tc_ble_single_sdk/tc_ble_single_sdk",
+      "-I../tc_ble_single_sdk/tc_ble_single_sdk/common",
+      "-I../tc_ble_single_sdk/tc_ble_single_sdk/drivers/B87",
+      "-I../tc_ble_single_sdk/tc_ble_single_sdk/drivers/B87/lib/include",
+      "-I./src",
+      "-c",
+      "src/app_battery.c",
+      "-o",
+      "out/app_battery.o"
+    ],
+    "directory": "/home/akira/Documents/coding/TelinkTooling/8bitdo_kbd",
+    "output": "out/app_battery.o"
+  },
+  {
+    "file": "src/connection.c",
+    "arguments": [
+      "tc32-elf-gcc",
+      "-ffunction-sections",
+      "-fdata-sections",
+      "-Wall",
+      "-O2",
+      "-fpack-struct",
+      "-fshort-enums",
+      "-finline-small-functions",
+      "-std=gnu99",
+      "-fshort-wchar",
+      "-fms-extensions",
+      "-DCHIP_TYPE=CHIP_TYPE_827x",
+      "-I../tc_ble_single_sdk/tc_ble_single_sdk",
+      "-I../tc_ble_single_sdk/tc_ble_single_sdk/common",
+      "-I../tc_ble_single_sdk/tc_ble_single_sdk/drivers/B87",
+      "-I../tc_ble_single_sdk/tc_ble_single_sdk/drivers/B87/lib/include",
+      "-I./src",
+      "-c",
+      "src/connection.c",
+      "-o",
+      "out/connection.o"
+    ],
+    "directory": "/home/akira/Documents/coding/TelinkTooling/8bitdo_kbd",
+    "output": "out/connection.o"
+  },
+  {
     "file": "src/main.c",
     "arguments": [
       "tc32-elf-gcc",

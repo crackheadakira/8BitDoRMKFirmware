@@ -1,0 +1,9 @@
+CompileFlags:
+  Remove:
+    - -fpack-struct
+    - -fshort-enums
+    - -fshort-wchar
+    - -fms-extensions
+    - -finline-small-functions
+Diagnostics:
+  UnusedIncludes: None

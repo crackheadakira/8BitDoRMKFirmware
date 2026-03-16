@@ -1,14 +1,13 @@
-SDK := ../tc_ble_single_sdk/tc_ble_single_sdk
+SDK  := ../tc_ble_single_sdk/tc_ble_single_sdk
 PROJ := .
-OUT := out
+OUT  := out
 
 CC      := tc32-elf-gcc
 LD      := tc32-elf-ld
 OBJCOPY := tc32-elf-objcopy
 SIZE    := tc32-elf-size
 
-CHIP := -DCHIP_TYPE=CHIP_TYPE_827x
-
+CHIP   := -DCHIP_TYPE=CHIP_TYPE_827x -DMCU_STARTUP_8278
 LIBGCC := $(shell $(CC) $(CFLAGS) -print-libgcc-file-name)
 
 CFLAGS := \
@@ -33,43 +32,50 @@ INCLUDES := \
 
 C_SRCS := \
     $(wildcard $(PROJ)/src/*.c) \
+    $(wildcard $(SDK)/common/*.c) \
+    $(wildcard $(SDK)/drivers/B87/flash/*.c) \
+    $(SDK)/drivers/B87/driver_ext/ext_misc.c \
     $(SDK)/drivers/B87/gpio.c \
     $(SDK)/drivers/B87/clock.c \
     $(SDK)/drivers/B87/usbhw.c \
     $(SDK)/drivers/B87/timer.c \
     $(SDK)/drivers/B87/analog.c \
     $(SDK)/drivers/B87/flash.c \
-    $(SDK)/drivers/B87/adc.c
+    $(SDK)/drivers/B87/adc.c \
+    $(SDK)/vendor/common/ble_flash.c
 
-S_SRCS := \
-    $(SDK)/boot/B87/cstartup_827x.S
+S_SRCS := $(SDK)/boot/B87/cstartup_827x.S
 
 C_OBJS := $(patsubst %.c,$(OUT)/%.o,$(notdir $(C_SRCS)))
 S_OBJS := $(patsubst %.S,$(OUT)/%.o,$(notdir $(S_SRCS)))
 OBJS   := $(C_OBJS) $(S_OBJS)
 
+VPATH := $(sort $(dir $(C_SRCS) $(S_SRCS)))
+
 LS       := $(SDK)/project/tlsr_tc32/B87/boot.link
 LIBS     := -llt_827x
-LIB_PATH := -L$(SDK)/proj_lib
 ELF      := $(OUT)/8bitdo_kbd.elf
 BIN      := $(OUT)/8bitdo_kbd.bin
 
+# --- TARGETS ---
 all: $(BIN)
 
-$(OUT)/%.o: $(PROJ)/src/%.c
+$(OUT)/%.o: %.c
 	@mkdir -p $(OUT)
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
-$(OUT)/%.o: $(SDK)/drivers/B87/%.c
-	@mkdir -p $(OUT)
-	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
-
-$(OUT)/%.o: $(SDK)/boot/B87/%.S
+$(OUT)/%.o: %.S
 	@mkdir -p $(OUT)
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
 $(ELF): $(OBJS)
-	$(LD) --gc-sections $(LIB_PATH) -T $(LS) --defsym __PM_DEEPSLEEP_RETENTION_ENABLE=0 --defsym __SRAM_SIZE=0x850000 -Map=$(OUT)/8bitdo_kbd.map -o $@ $(OBJS) $(LIBS) $(LIBGCC)
+	$(CC) $(CFLAGS) -T $(LS) -L$(SDK)/proj_lib \
+		-nostdlib \
+		-Wl,--gc-sections \
+		-Wl,--defsym,__PM_DEEPSLEEP_RETENTION_ENABLE=0 \
+		-Wl,--defsym,__SRAM_SIZE=0x850000 \
+		-Wl,-Map=$(OUT)/8bitdo_kbd.map \
+		-o $@ $(OBJS) $(LIBS) $(LIBGCC)
 
 $(BIN): $(ELF)
 	$(OBJCOPY) -v -O binary $(ELF) $(BIN)

@@ -1,9 +1,9 @@
+#include "stack/ble/ble.h"
+#include "drivers.h"
 #include "app_battery.h"
 #include "app_config.h"
 #include "ble.h"
 #include "connection.h"
-#include "drivers.h"
-#include "stack/ble/ble.h"
 
 typedef struct
 {
@@ -45,7 +45,7 @@ int main(void)
         // as 847b70 will be set to 0x20000 - *847b84.
         // *847b84 is being set by a function inside of cpu_wakeup_init.
         uint32_t sram_value_unknown = 0x20000;
-        initialize_adc(sram_value_unknown + GPIO_PA3 | GPIO_PA4, B3P);
+        initialize_adc(sram_value_unknown + (GPIO_PA3 | GPIO_PA4), B3P);
         initialize_adc(sram_value_unknown - 4, B3P);
         initialize_adc(sram_value_unknown + GPIO_PA1, B3P);
 

@@ -1,11 +1,24 @@
-#pragma once
+#ifndef APP_CONFIG_H
+#define APP_CONFIG_H
 
 #define BOARD_SELECT BOARD_827X_EVK_C1T197A30
 
+// Power Management
+#undef BLE_APP_PM_ENABLE
 #define BLE_APP_PM_ENABLE 1
+
+#undef PM_DEEPSLEEP_RETENTION_ENABLE
 #define PM_DEEPSLEEP_RETENTION_ENABLE 1
-#define BLE_REMOTE_OTA_ENABLE 0
+
+// Features
+#undef UI_KEYBOARD_ENABLE
 #define UI_KEYBOARD_ENABLE 1
+
+#undef UI_LED_ENABLE
 #define UI_LED_ENABLE 1
+
+#define BLE_REMOTE_OTA_ENABLE 0
 #define BLE_AUDIO_ENABLE 0
 #define REMOTE_IR_ENABLE 0
+
+#endif

@@ -1,9 +1,14 @@
-#include "driver_ext/ext_misc.h"
-#include "stack/ble/ble.h"
-#include "stdint.h"
+#include "vendor/common/ble_flash.h"
 #include "ble.h"
+#include "stdint.h"
+#include "stack/ble/ble.h"
+#include "driver_ext/ext_misc.h"
 
 #define DEVICE_NAME_LEN 21
+
+uint8_t mac_public[6];
+uint8_t mac_random_static[6];
+uint8_t g_device_name[32];
 
 void ble_identity_init(void)
 {

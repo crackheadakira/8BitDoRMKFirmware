@@ -9,6 +9,8 @@ SIZE    := tc32-elf-size
 
 CHIP := -DCHIP_TYPE=CHIP_TYPE_827x
 
+LIBGCC := $(shell $(CC) $(CFLAGS) -print-libgcc-file-name)
+
 CFLAGS := \
     -ffunction-sections \
     -fdata-sections \
@@ -36,7 +38,8 @@ C_SRCS := \
     $(SDK)/drivers/B87/usbhw.c \
     $(SDK)/drivers/B87/timer.c \
     $(SDK)/drivers/B87/analog.c \
-    $(SDK)/drivers/B87/flash.c
+    $(SDK)/drivers/B87/flash.c \
+    $(SDK)/drivers/B87/adc.c
 
 S_SRCS := \
     $(SDK)/boot/B87/cstartup_827x.S
@@ -66,7 +69,7 @@ $(OUT)/%.o: $(SDK)/boot/B87/%.S
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
 $(ELF): $(OBJS)
-	$(LD) --gc-sections $(LIB_PATH) -T $(LS) --defsym __PM_DEEPSLEEP_RETENTION_ENABLE=0 --defsym __SRAM_SIZE=0x850000 -Map=$(OUT)/8bitdo_kbd.map -o $@ $(OBJS) $(LIBS)
+	$(LD) --gc-sections $(LIB_PATH) -T $(LS) --defsym __PM_DEEPSLEEP_RETENTION_ENABLE=0 --defsym __SRAM_SIZE=0x850000 -Map=$(OUT)/8bitdo_kbd.map -o $@ $(OBJS) $(LIBS) $(LIBGCC)
 
 $(BIN): $(ELF)
 	$(OBJCOPY) -v -O binary $(ELF) $(BIN)

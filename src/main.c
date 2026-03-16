@@ -59,19 +59,7 @@ int main(void)
 
     if (has_mcu_awoken == 0)
     {
-        /*
-            if (*has_mcu_awoken == 0) {
-                cVar7 = (char)*PTR_DAT_0000074c - (char)*PTR_DAT_00000750;
-                uStack_18 = *has_mcu_awoken;
-                initialize_adc(
-                    cVar7 + 24,                             <-- gpio_pin
-                    B3P,                                    <-- adc_channel
-                    &uStack_18,                             <-- dest
-                    (uint32_t *) *PTR_uint32_t_00000754     <-- flash_ptr
-                );
-        */
-        // initialize_ADC(_, B3P, _, _)
-        initialize_adc();
+        initialize_adc(GPIO_PA3 | GPIO_PA4, B3P);
     }
 
     while (1)

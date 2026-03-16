@@ -56,7 +56,7 @@ uint8_t battery_level_calc(int16_t raw_adc_val)
     return final_percent;
 }
 
-void initialize_adc(GPIO_PinTypeDef gpio_pin, ADC_InputPchTypeDef adc_channel, void *dest, uint32_t *flash_ptr)
+void initialize_adc(GPIO_PinTypeDef gpio_pin, ADC_InputPchTypeDef adc_channel)
 {
     adc_power_on_sar_adc(0);
     adc_enable_clk_24m_to_sar_adc(1);

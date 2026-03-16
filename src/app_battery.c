@@ -56,23 +56,23 @@ uint8_t battery_level_calc(int16_t raw_adc_val)
     return final_percent;
 }
 
-void initialize_adc(uint8_t id, uint16_t size, void *dest, uint32_t *flash_ptr)
+void initialize_adc(GPIO_PinTypeDef gpio_pin, ADC_InputPchTypeDef adc_channel, void *dest, uint32_t *flash_ptr)
 {
     adc_power_on_sar_adc(0);
     adc_enable_clk_24m_to_sar_adc(1);
     adc_set_sample_clk(5);
-    adc_set_chn_enable_and_max_state_cnt(4, 2);
+    adc_set_chn_enable_and_max_state_cnt(ADC_MISC_CHN, 2);
     adc_set_state_length(240, 10);
 
-    gpio_set_func(id, AS_GPIO);
-    gpio_set_output_en(id, 0);
+    gpio_set_func(gpio_pin, AS_GPIO);
+    gpio_set_output_en(gpio_pin, 0);
 
-    reg_gpio_pa_oen = reg_gpio_pa_oen | id;
-    reg_gpio_pa_out = reg_gpio_pa_out & ~id;
+    reg_gpio_pa_oen = reg_gpio_pa_oen | gpio_pin;
+    reg_gpio_pa_out = reg_gpio_pa_out & ~gpio_pin;
 
-    adc_set_ain_channel_differential_mode(size & 0xFF, 0x0F);
+    adc_set_ain_channel_differential_mode(adc_channel & 0xFF, GND);
 
-    adc_set_resolution_chn_misc(3);
+    adc_set_resolution_chn_misc(RES14);
 
     adc_set_ref_voltage(ADC_VREF_1P2V);
     adc_set_tsample_cycle_chn_misc(SAMPLING_CYCLES_6);

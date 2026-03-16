@@ -1,10 +1,13 @@
+#include "app_config.h"
 #include "drivers/B87/driver.h"
 #include "drivers/B87/gpio.h"
+#include "stack/ble/controller/ll/ll_pm.h"
 #include "tl_common.h"
 #include "drivers.h"
 #include "stack/ble/ble.h"
 #include "stdint.h"
 #include "connection.h"
+#include "app_battery.h"
 
 typedef struct
 {
@@ -31,8 +34,6 @@ uint8_t saved_conn_mode;
 uint8_t saved_profile_id;
 uint8_t saved_sleep_state;
 
-bool is_cold_boot;
-
 void irq_handler(void)
 {
 }
@@ -44,15 +45,33 @@ void ble_stack_param_init(void)
 int main(void)
 {
     cpu_wakeup_init(DCDC_MODE, INTERNAL_CAP_XTAL24M);
-    clock_init(SYS_CLK_24M_Crystal);
 
-    gpio_init(0);
+    int has_mcu_awoken = pm_is_MCU_deepRetentionWakeup();
 
-    is_cold_boot = (pm_is_MCU_deepRetentionWakeup() == 0);
+    gpio_init(has_mcu_awoken);
 
-    if (is_cold_boot)
+    if (has_mcu_awoken == 0)
     {
         conn_mode_init();
+    }
+
+    clock_init(SYS_CLK_48M_Crystal);
+
+    if (has_mcu_awoken == 0)
+    {
+        /*
+            if (*has_mcu_awoken == 0) {
+                cVar7 = (char)*PTR_DAT_0000074c - (char)*PTR_DAT_00000750;
+                uStack_18 = *has_mcu_awoken;
+                initialize_adc(
+                    cVar7 + 24,                             <-- gpio_pin
+                    B3P,                                    <-- adc_channel
+                    &uStack_18,                             <-- dest
+                    (uint32_t *) *PTR_uint32_t_00000754     <-- flash_ptr
+                );
+        */
+        // initialize_ADC(_, B3P, _, _)
+        initialize_adc();
     }
 
     while (1)

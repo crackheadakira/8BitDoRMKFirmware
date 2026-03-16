@@ -1,11 +1,11 @@
 #pragma once
 
-#define BOARD_SELECT        BOARD_827X_EVK_C1T197A30
+#define BOARD_SELECT BOARD_827X_EVK_C1T197A30
 
-#define BLE_APP_PM_ENABLE               0
-#define PM_DEEPSLEEP_RETENTION_ENABLE   0
-#define BLE_REMOTE_OTA_ENABLE           0
-#define UI_KEYBOARD_ENABLE              1
-#define UI_LED_ENABLE                   1
-#define BLE_AUDIO_ENABLE                0
-#define REMOTE_IR_ENABLE                0
+#define BLE_APP_PM_ENABLE 1
+#define PM_DEEPSLEEP_RETENTION_ENABLE 1
+#define BLE_REMOTE_OTA_ENABLE 0
+#define UI_KEYBOARD_ENABLE 1
+#define UI_LED_ENABLE 1
+#define BLE_AUDIO_ENABLE 0
+#define REMOTE_IR_ENABLE 0

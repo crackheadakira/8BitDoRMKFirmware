@@ -3,6 +3,8 @@
 #define APP_BATTERY_H
 
 #include <stdint.h>
+#include <gpio.h>
+#include <adc.h>
 
 typedef struct
 {
@@ -33,6 +35,6 @@ typedef struct
 extern adc_state_t adc_state;
 
 uint8_t battery_level_calc(int16_t raw_adc_val);
-void initialize_adc(uint8_t pin_id, uint16_t adc_channel, void *dest, uint32_t *flash_ptr);
+void initialize_adc(GPIO_PinTypeDef gpio_pin, ADC_InputPchTypeDef adc_channel, void *dest, uint32_t *flash_ptr);
 
 #endif

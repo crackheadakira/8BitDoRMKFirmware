@@ -3,18 +3,22 @@ PROJ := .
 OUT  := out
 
 CC      := tc32-elf-gcc
-LD      := tc32-elf-ld
 OBJCOPY := tc32-elf-objcopy
 SIZE    := tc32-elf-size
 
 CHIP   := -DCHIP_TYPE=CHIP_TYPE_827x -DMCU_STARTUP_8278
-LIBGCC := $(shell $(CC) $(CFLAGS) -print-libgcc-file-name)
+LS     := $(SDK)/project/tlsr_tc32/B87/boot.link
+LIBS   := -llt_827x
+LIBGCC := $(shell $(CC) -print-libgcc-file-name)
 
-CFLAGS := \
+ELF        := $(OUT)/8bitdo_kbd.elf
+DEBUG_ELF  := $(OUT)/8bitdo_kbd_debug.elf
+BIN        := $(OUT)/8bitdo_kbd.bin
+
+BASE_CFLAGS := \
     -ffunction-sections \
     -fdata-sections \
     -Wall \
-    -O2 \
     -fpack-struct \
     -fshort-enums \
     -finline-small-functions \
@@ -29,6 +33,29 @@ INCLUDES := \
     -I$(SDK)/drivers/B87 \
     -I$(SDK)/drivers/B87/lib/include \
     -I$(PROJ)/src
+
+# Release flags
+
+RELEASE_CFLAGS := \
+    -O2
+
+RELEASE_LDFLAGS := \
+    -Wl,--gc-sections \
+    -Wl,-Map=$(OUT)/8bitdo_kbd.map
+
+# Debug flags meant for Ghidra
+
+DEBUG_CFLAGS := \
+    -O0 \
+    -g3 \
+    -ggdb \
+    -fno-omit-frame-pointer \
+    -fno-inline \
+    -fno-inline-functions
+
+DEBUG_LDFLAGS := \
+    -Wl,--gc-sections \
+    -Wl,-Map=$(OUT)/8bitdo_kbd_debug.map
 
 C_SRCS := \
     $(wildcard $(PROJ)/src/*.c) \
@@ -52,36 +79,48 @@ OBJS   := $(C_OBJS) $(S_OBJS)
 
 VPATH := $(sort $(dir $(C_SRCS) $(S_SRCS)))
 
-LS       := $(SDK)/project/tlsr_tc32/B87/boot.link
-LIBS     := -llt_827x
-ELF      := $(OUT)/8bitdo_kbd.elf
-BIN      := $(OUT)/8bitdo_kbd.bin
-
-# --- TARGETS ---
 all: $(BIN)
+debug: $(DEBUG_ELF)
 
 $(OUT)/%.o: %.c
 	@mkdir -p $(OUT)
-	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+	$(CC) $(BASE_CFLAGS) $(CFLAGS_EXTRA) $(INCLUDES) -c $< -o $@
 
 $(OUT)/%.o: %.S
 	@mkdir -p $(OUT)
-	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+	$(CC) $(BASE_CFLAGS) $(CFLAGS_EXTRA) $(INCLUDES) -c $< -o $@
 
+# Release link
+
+$(ELF): CFLAGS_EXTRA := $(RELEASE_CFLAGS)
+$(ELF): LDFLAGS_EXTRA := $(RELEASE_LDFLAGS)
 $(ELF): $(OBJS)
-	$(CC) $(CFLAGS) -T $(LS) -L$(SDK)/proj_lib \
+	$(CC) $(BASE_CFLAGS) $(CFLAGS_EXTRA) \
+		-T $(LS) -L$(SDK)/proj_lib \
 		-nostdlib \
-		-Wl,--gc-sections \
+		$(LDFLAGS_EXTRA) \
 		-Wl,--defsym,__PM_DEEPSLEEP_RETENTION_ENABLE=0 \
 		-Wl,--defsym,__SRAM_SIZE=0x850000 \
-		-Wl,-Map=$(OUT)/8bitdo_kbd.map \
 		-o $@ $(OBJS) $(LIBS) $(LIBGCC)
 
 $(BIN): $(ELF)
-	$(OBJCOPY) -v -O binary $(ELF) $(BIN)
+	$(OBJCOPY) -O binary $(ELF) $(BIN)
 	$(SIZE) $(ELF)
+
+# Debug link
+
+$(DEBUG_ELF): CFLAGS_EXTRA := $(DEBUG_CFLAGS)
+$(DEBUG_ELF): LDFLAGS_EXTRA := $(DEBUG_LDFLAGS)
+$(DEBUG_ELF): $(OBJS)
+	$(CC) $(BASE_CFLAGS) $(CFLAGS_EXTRA) \
+		-T $(LS) -L$(SDK)/proj_lib \
+		-nostdlib \
+		$(LDFLAGS_EXTRA) \
+		-Wl,--defsym,__PM_DEEPSLEEP_RETENTION_ENABLE=0 \
+		-Wl,--defsym,__SRAM_SIZE=0x850000 \
+		-Wl,--start-group $(OBJS) $(LIBS) $(LIBGCC) -Wl,--end-group \
+		-o $@
+	$(SIZE) $(DEBUG_ELF)
 
 clean:
 	rm -rf $(OUT)
-
-.PHONY: all clean

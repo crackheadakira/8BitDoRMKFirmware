@@ -4,6 +4,7 @@
 #include "app_config.h"
 #include "ble.h"
 #include "connection.h"
+#include "nvram.h"
 
 typedef struct
 {
@@ -20,9 +21,14 @@ uint8_t saved_conn_mode;
 uint8_t saved_profile_id;
 uint8_t saved_sleep_state;
 
-void irq_handler(void) {}
+void irq_handler(void)
+{
+}
 
-void ble_stack_param_init(void) {}
+uint32_t ble_stack_param_init(void)
+{
+    return 0;
+}
 
 int main(void)
 {
@@ -46,7 +52,7 @@ int main(void)
         // *847b84 is being set by a function inside of cpu_wakeup_init.
         uint32_t sram_value_unknown = 0x20000;
         initialize_adc(sram_value_unknown + (GPIO_PA3 | GPIO_PA4), B3P);
-        initialize_adc(sram_value_unknown - 4, B3P);
+        initialize_adc(sram_value_unknown - GPIO_PA2, B3P);
         initialize_adc(sram_value_unknown + GPIO_PA1, B3P);
 
         flash_mid_e flash_mid = flash_read_mid();
@@ -79,21 +85,31 @@ int main(void)
                 true {};
         }
 
-        /*
-            uVar3 = analog_read(DEEP_ANA_REG0);
-            unknown_ptr = PTR_DAT_00000728;
-            *PTR_DAT_00000728 = uVar3;
-            uVar3 = analog_read(DEEP_ANA_REG1);
-            *PTR_DAT_00000758 = uVar3;
-            uVar3 = analog_read(DEEP_ANA_REG2);
-            *PTR_DAT_0000075c = uVar3;
-        */
-
         analog_read(DEEP_ANA_REG0);
+        // *connection_mode_ptr = above ^;
+
         analog_read(DEEP_ANA_REG1);
+        // *PTR_DAT_00000758 = above ^;
+
         analog_read(DEEP_ANA_REG2);
+        // *PTR_DAT_0000075c = above ^; seems to not be read in code
 
         ble_identity_init();
+
+        uint8_t g_KeymapProfile[0x20];
+        int nv_config_offset = nvram_read_sector(0x79000, g_KeymapProfile, 0x20);
+
+        uint8_t nv_bond_buf[0x50];
+        int nv_bond_offset = nvram_read_wear_leveled(0x69000, nv_bond_buf, 0x50);
+
+        uint8_t nv_something_buf[0x3E];
+        int nv_something_offset = nvram_read_wear_leveled(0x69800, nv_something_buf, 0x3E);
+
+        uint8_t nv_small_buf[0x12];
+        int nv_small_offset = nvram_read_wear_leveled(0x69C00, nv_small_buf, 0x12);
+
+        uint8_t nv_word_buf[4];
+        int nv_word_offset = nvram_read_sector(0x73000, nv_word_buf, 0x04);
     }
 
     while (1)

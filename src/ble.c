@@ -10,10 +10,62 @@ uint8_t mac_public[6];
 uint8_t mac_random_static[6];
 uint8_t g_device_name[32];
 
+void *memmove_impl(void *dest, const void *src, size_t length)
+{
+    uint8_t *d = dest;
+    const uint8_t *s = src;
+
+    if (d == s || length == 0)
+        return dest;
+
+    if (d < s)
+    {
+        for (size_t i = 0; i < length; i++)
+            d[i] = s[i];
+    }
+    else
+    {
+        for (size_t i = length; i != 0; i--)
+            d[i - 1] = s[i - 1];
+    }
+
+    return dest;
+}
+
 void ble_identity_init(void)
 {
+    random_generator_init();
+
+    u8 mac_address[4];
+    flash_read_data(flash_sector_mac_address, 4, mac_address);
+
+    if (*(uint32_t *)mac_address == 0xFFFFFFFF)
+    {
+        generateRandomNum(4, mac_address);
+        flash_page_program(flash_sector_mac_address, 4, mac_address);
+    }
+
+    /*
+        if (adv_channel_cfg_0 == 0xff) {
+            adv_channel_cfg_0 = 0xa8;
+        }
+        if (adv_channel_cfg_1 == 0xff) {
+            adv_channel_cfg_1 = 0x17;
+        }
+        if (adv_channel_cfg_2 == 0xff) {
+            adv_channel_cfg_2 = 0xa8;
+        }
+    */
+
+    // TODO: REPLACE
+    void *device_name = 0;
+    memmove_impl(device_name, "8BitDo Retro Keyboard", 21);
+}
+
+void ble_identity_init_incorrect(void)
+{
     u8 mac_read[8];
-    flash_read_page(flash_sector_mac_address, 8, mac_read);
+    flash_read_data(flash_sector_mac_address, 8, mac_read);
 
     u8 value_rand[5];
     generateRandomNum(5, value_rand);
@@ -35,7 +87,7 @@ void ble_identity_init(void)
         mac_public[4] = 0x17;
         mac_public[5] = 0xA8;
 
-        flash_write_page(flash_sector_mac_address, 6, mac_public);
+        flash_page_program(flash_sector_mac_address, 6, mac_public);
     }
 
     mac_random_static[0] = mac_public[0];
@@ -55,7 +107,7 @@ void ble_identity_init(void)
         mac_random_static[3] = value_rand[3];
         mac_random_static[4] = value_rand[4];
 
-        flash_write_page(flash_sector_mac_address + 6, 2, &mac_random_static[3]);
+        flash_page_program(flash_sector_mac_address + 6, 2, &mac_random_static[3]);
     }
 
     memcpy(g_device_name, "8BitDo Retro Keyboard", DEVICE_NAME_LEN);

@@ -4,7 +4,7 @@
 #include "app_config.h"
 #include "ble.h"
 #include "connection.h"
-#include "nvram.h"
+#include "tl_snv.h"
 
 typedef struct
 {
@@ -59,11 +59,11 @@ int main(void)
 
         if (flash_mid == MID13325E)
         {
-            flash_write_status_mid13325e(0x18, 0x1C);
+            flash_lock_mid13325e(0x18);
         }
         else if (flash_mid == MID1360C8)
         {
-            flash_write_status_mid1360c8(0x18, 0x1C);
+            flash_lock_mid1360c8(0x18);
         }
 
         // The value of (mid&0x00ff0000)>>16 reflects flash capacity.
@@ -97,19 +97,19 @@ int main(void)
         ble_identity_init();
 
         uint8_t g_KeymapProfile[0x20];
-        int nv_config_offset = nvram_read_sector(0x79000, g_KeymapProfile, 0x20);
+        int nv_config_offset = flash_read_sector(0x79000, g_KeymapProfile, 0x20);
 
         uint8_t nv_bond_buf[0x50];
-        int nv_bond_offset = nvram_read_wear_leveled(0x69000, nv_bond_buf, 0x50);
+        int nv_bond_offset = flash_read_wear_leveled(0x69000, nv_bond_buf, 0x50);
 
         uint8_t nv_something_buf[0x3E];
-        int nv_something_offset = nvram_read_wear_leveled(0x69800, nv_something_buf, 0x3E);
+        int nv_something_offset = flash_read_wear_leveled(0x69800, nv_something_buf, 0x3E);
 
         uint8_t nv_small_buf[0x12];
-        int nv_small_offset = nvram_read_wear_leveled(0x69C00, nv_small_buf, 0x12);
+        int nv_small_offset = flash_read_wear_leveled(0x69C00, nv_small_buf, 0x12);
 
         uint8_t nv_word_buf[4];
-        int nv_word_offset = nvram_read_sector(0x73000, nv_word_buf, 0x04);
+        int nv_word_offset = flash_read_sector(0x73000, nv_word_buf, 0x04);
     }
 
     while (1)

@@ -1,5 +1,7 @@
 #include "common/string.h"
 #include "drivers/B87/flash.h"
+#include "flash/flash_mid13325e.h"
+#include "flash/flash_mid1360c8.h"
 #include "stdint.h"
 #include "timer.h"
 
@@ -107,4 +109,18 @@ int flash_read_sector(int flash_base, void *buf, int record_size)
     }
 
     return offset;
+}
+
+void flash_unlock_by_jedec_id(void)
+{
+    flash_mid_e flash_mid = flash_read_mid();
+
+    if (flash_mid == MID13325E)
+    {
+        flash_unlock_mid13325e();
+    }
+    else if (flash_mid == MID1360C8)
+    {
+        flash_unlock_mid1360c8();
+    }
 }

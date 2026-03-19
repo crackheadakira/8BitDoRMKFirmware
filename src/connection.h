@@ -1,6 +1,8 @@
 #include "stdint.h"
+#include <stdbool.h>
 
 void conn_mode_init();
+bool is_wireless_mode(void);
 
 typedef struct
 {
@@ -13,5 +15,13 @@ typedef struct
     uint32_t status_flags;
 } conn_state_t;
 
+typedef struct
+{
+    uint8_t main_mode; // 0 = USB, non-zero = BLE/2.4GHz
+    uint8_t bt_active;
+    uint8_t sample_idx;
+    uint8_t state_flags;
+} connection_mode_t;
+
 extern conn_state_t conn_state;
-extern volatile uint32_t connection_mode;
+extern connection_mode_t connection_mode;

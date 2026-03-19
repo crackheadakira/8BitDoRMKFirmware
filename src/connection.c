@@ -40,3 +40,8 @@ void conn_mode_init(void)
 
     conn_state.status_flags = conn_ready_flag | 1;
 }
+
+bool is_wireless_mode(void)
+{
+    return connection_mode.main_mode != 0;
+}

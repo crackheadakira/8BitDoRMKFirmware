@@ -2,6 +2,8 @@
 #include "stdint.h"
 #include "application/usbstd/usb.h"
 #include "usb.h"
+#include "app_config.h"
+#include "dfu.h"
 
 static uint8_t ep_toggle = 0;
 static uint8_t ep_buf[33];
@@ -13,6 +15,37 @@ uint8_t usb_hid_state;
 uint8_t usb_connected;
 uint8_t rf_tx_header_en;
 uint8_t hid_seq_counter;
+uint8_t target_bank_id;
+
+uint8_t is_dfu_initialized;
+uint8_t is_receiving_data;
+uint8_t is_end_of_file;
+
+uint32_t current_flash_offset;
+uint16_t packet_counter;
+uint32_t running_crc_bank0;
+uint32_t running_crc_bank1;
+
+uint32_t crc32_update(uint32_t crc, const uint8_t *data, size_t length)
+{
+    for (size_t i = 0; i < length; i++)
+    {
+        uint32_t byte = (data[i] ^ crc) & 0xFF;
+        for (int bit = 0; bit < 8; bit++)
+        {
+            if (byte & 1)
+            {
+                byte = (byte >> 1) ^ 0xEDB88320;
+            }
+            else
+            {
+                byte >>= 1;
+            }
+        }
+        crc = (crc >> 8) ^ byte;
+    }
+    return crc;
+}
 
 void usb_connection_poll()
 {
@@ -134,7 +167,7 @@ void hid_send_response(uint8_t payload_len)
     }
 }
 
-void hid_send_ready_ack(uint8_t length_complement, uint8_t command)
+void hid_send_ready_ack(uint8_t sequence_number, uint8_t command)
 
 {
     memset(tx_packet_buffer, 0, 64);
@@ -142,7 +175,7 @@ void hid_send_ready_ack(uint8_t length_complement, uint8_t command)
     hid_tx_packet_t *packet = (hid_tx_packet_t *)tx_packet_buffer;
 
     packet->payload[0] = 0xA1;
-    packet->payload[1] = length_complement;
+    packet->payload[1] = sequence_number;
     packet->payload[2] = command;
 
     hid_send_response(5);
@@ -162,6 +195,194 @@ void hid_send_data_nack(uint8_t param_1)
 
     hid_send_response(4);
     return;
+}
+
+void hid_flash_handler(hid_rx_packet_t *packet)
+{
+    uint16_t magic = (uint32_t)((packet->magic_high << 8) | packet->magic_low);
+
+    if (magic != 0xAA55 && magic != 0xAA56)
+    {
+        return;
+    }
+
+    if (packet->length != (uint8_t)~packet->length_complement)
+    {
+        return;
+    }
+
+    if (packet->length <= 2)
+    {
+        return;
+    }
+
+    uint16_t checksum_accum = packet->command;
+    uint8_t loop_limit = packet->length - 3;
+
+    for (uint8_t i = 0; i < loop_limit; i++)
+    {
+        checksum_accum += packet->data[i];
+    }
+
+    if (packet->crc != checksum_accum)
+    {
+        return;
+    }
+
+    hid_tx_packet_t *tx_packet = (hid_tx_packet_t *)tx_packet_buffer;
+    switch (packet->command)
+    {
+
+    case QUERY_DEVICE_INFO:
+        memset(&tx_packet_buffer, 0, 64);
+
+        tx_packet->payload[0] = 0xA3;
+        tx_packet->payload[1] = packet->sequence_number;
+        tx_packet->payload[2] = packet->command;
+        tx_packet->payload[3] = 0x01;
+
+        tx_packet->payload[0x0E] = 0x05;
+        tx_packet->payload[0x0F] = 0x03;
+
+        memcpy(&tx_packet->payload[4], FIRMWARE_MAGIC_NAME, 8);
+        memcpy(&tx_packet->payload[16], FIRMWARE_VERSION_LONG, 6);
+        memcpy(&tx_packet->payload[26], FIRMWARE_VERSION_SHORT, 5);
+
+        hid_send_response(0x26);
+        break;
+
+    case GET_CAPABILITIES:
+        memset(&tx_packet_buffer, 0, 64);
+
+        tx_packet->payload[4] = 0x1;
+        tx_packet->payload[0] = 0xA3;
+        tx_packet->payload[1] = packet->sequence_number;
+        tx_packet->payload[2] = packet->command;
+
+        hid_send_response(0x7);
+
+        break;
+
+    case ENTER_DFU_MODE:
+        memset(&tx_packet_buffer, 0, 0x40);
+
+        if (packet->data[0] < 0x3)
+        {
+            target_bank_id = packet->data[0];
+        }
+
+        tx_packet->payload[0] = 0xa3;
+        tx_packet->payload[2] = 'b';
+        tx_packet->payload[3] = ~-(2 < packet->data[0]);
+        tx_packet->payload[1] = packet->sequence_number;
+        hid_send_response(0x9);
+        break;
+
+    case CONFIRM_READY:
+        if (magic == 0xAA56)
+        {
+            dfu_hardware_init();
+
+            is_dfu_initialized = 0x1;
+            current_flash_offset = 0x0;
+            packet_counter = 0x0;
+            is_end_of_file = 0x0;
+            running_crc_bank0 = 0xfffffffe;
+            running_crc_bank1 = 0xfffffffe;
+
+            hid_send_ready_ack(packet->sequence_number, 0x63);
+        }
+
+        break;
+
+    case DATA:
+        is_receiving_data = 1;
+        if (is_dfu_initialized == 0)
+        {
+            hid_send_data_nack(packet->sequence_number);
+            break;
+        }
+
+        uint8_t data_len = packet->length - 4;
+        uint32_t write_len = data_len;
+
+        if (target_bank_id == 0)
+        {
+            running_crc_bank0 = crc32_update(running_crc_bank0, packet->data, data_len);
+        }
+        // ignore bank 1 for now
+
+        if (is_end_of_file == 0)
+        {
+            if ((current_flash_offset & 0xFFF) == 0)
+            {
+                flash_erase_sector(ota_program_offset + current_flash_offset);
+            }
+
+            if (data_len == 16 && packet_counter < 0x3FFF)
+            {
+                if ((packet_counter == 0) && (packet->data[8] == 'K'))
+                {
+                    packet->data[8] = 0xFF;
+                }
+
+                flash_page_program(ota_program_offset + current_flash_offset, 16, packet->data);
+                packet_counter += 1;
+            }
+            else if ((data_len == 4) && (packet_counter < 0xFFF))
+            {
+                flash_page_program(ota_program_offset + current_flash_offset, 4, packet->data);
+                packet_counter += 1;
+                is_end_of_file = 1;
+            }
+
+            current_flash_offset += write_len;
+            hid_send_ready_ack(packet->sequence_number, 100);
+            return;
+        }
+        current_flash_offset += write_len;
+
+        break;
+
+    case COMMIT:
+        memset(&tx_packet_buffer, 0, 64);
+        uint32_t crc_received = (uint32_t)packet->data[3] << 24 | (uint32_t)packet->data[0] |
+                                (uint32_t)packet->data[1] << 8 | (uint32_t)packet->data[2] << 16;
+
+        uint32_t crc_expected = (uint32_t)packet->data[7] << 24 | (uint32_t)packet->data[4] |
+                                (uint32_t)packet->data[5] << 8 | (uint32_t)packet->data[6] << 16;
+
+        if (target_bank_id == 0)
+        {
+            tx_packet->payload[4] = true;
+            if (crc_received == crc_expected)
+            {
+                tx_packet->payload[4] = crc_received != running_crc_bank0;
+            }
+        }
+        else
+        {
+            tx_packet->payload[4] = true;
+            if ((target_bank_id == 1) && (crc_received == running_crc_bank1))
+            {
+                tx_packet->payload[4] = crc_expected != running_crc_bank0;
+            }
+        }
+        tx_packet->payload[0] = 0xA3;
+        tx_packet->payload[2] = 0x65;
+        tx_packet->payload[3] = 0x00;
+        tx_packet->payload[1] = packet->sequence_number;
+
+        hid_send_response(5);
+
+        break;
+
+    case REBOOT:
+        break;
+
+    case DEBUG:
+        break;
+    }
 }
 
 void usb_hid_init(void)

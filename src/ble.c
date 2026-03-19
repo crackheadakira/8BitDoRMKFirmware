@@ -10,28 +10,6 @@ uint8_t mac_public[6];
 uint8_t mac_random_static[6];
 uint8_t g_device_name[32];
 
-void *memmove_impl(void *dest, const void *src, size_t length)
-{
-    uint8_t *d = dest;
-    const uint8_t *s = src;
-
-    if (d == s || length == 0)
-        return dest;
-
-    if (d < s)
-    {
-        for (size_t i = 0; i < length; i++)
-            d[i] = s[i];
-    }
-    else
-    {
-        for (size_t i = length; i != 0; i--)
-            d[i - 1] = s[i - 1];
-    }
-
-    return dest;
-}
-
 void ble_identity_init(void)
 {
     random_generator_init();
@@ -59,7 +37,7 @@ void ble_identity_init(void)
 
     // TODO: REPLACE
     void *device_name = 0;
-    memmove_impl(device_name, "8BitDo Retro Keyboard", 21);
+    memcpy(device_name, "8BitDo Retro Keyboard", 21);
 }
 
 void ble_identity_init_incorrect(void)

@@ -1,5 +1,17 @@
 #include <stdint.h>
 
+typedef enum
+{
+    QUERY_DEVICE_INFO = 0x60,
+    GET_CAPABILITIES = 0x61,
+    ENTER_DFU_MODE = 0x62,
+    CONFIRM_READY = 0x63,
+    DATA = 0x64,
+    COMMIT = 0x65,
+    REBOOT = 0x66,
+    DEBUG = 0xF2,
+} hid_command_t;
+
 typedef struct __attribute__((packed))
 {
     uint8_t magic_high;
@@ -7,7 +19,7 @@ typedef struct __attribute__((packed))
     uint8_t length;
     uint8_t length_complement;
     uint8_t sequence_number;
-    uint8_t command;
+    hid_command_t command;
     uint8_t data[16];
     uint16_t crc;
     uint8_t padding[8];
@@ -27,6 +39,16 @@ extern uint8_t hid_seq_counter;
 extern uint8_t usb_hid_state;
 extern uint8_t usb_connected;
 extern uint8_t rf_tx_header_en;
+extern uint8_t target_bank_id;
+
+extern uint8_t is_dfu_initialized;
+extern uint8_t is_receiving_data;
+extern uint8_t is_end_of_file;
+
+extern uint32_t current_flash_offset;
+extern uint16_t packet_counter;
+extern uint32_t running_crc_bank0;
+extern uint32_t running_crc_bank1;
 
 extern uint8_t usb_ep_data_toggle[8];
 

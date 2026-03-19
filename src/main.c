@@ -5,6 +5,7 @@
 #include "ble.h"
 #include "connection.h"
 #include "tl_snv.h"
+#include "usb.h"
 
 typedef struct
 {
@@ -26,6 +27,14 @@ uint32_t flash_bank_address_2;
 
 void irq_handler(void)
 {
+    if (reg_irq_src & FLD_IRQ_TMR0_EN)
+    {
+        reg_irq_src = FLD_IRQ_TMR0_EN;
+    }
+    if (reg_irq_src & FLD_IRQ_TMR1_EN)
+    {
+        reg_irq_src = FLD_IRQ_TMR1_EN;
+    }
 }
 
 uint32_t ble_stack_param_init(void)
@@ -139,26 +148,17 @@ int main(void)
         int nv_word_offset = flash_read_sector(0x73000, nv_word_buf, 0x04);
     }*/
 
-    //
+    chip_config_init();
+
     flash_mid_e flash_mid = flash_read_mid();
-
-    if (flash_mid == MID13325E)
-    {
-        flash_lock_mid13325e(0x18);
-    }
-    else if (flash_mid == MID1360C8)
-    {
-        flash_lock_mid1360c8(0x18);
-    }
-
     flash_set_bank_addrs(flash_mid);
 
-    // usb_hid_init();
+    usb_hid_init();
     irq_enable();
 
     while (1)
     {
-        // usb_poll();
+        usb_poll();
     }
 
     return 0;

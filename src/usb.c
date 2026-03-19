@@ -1,9 +1,10 @@
 #include "register.h"
-#include "stdint.h"
 #include "application/usbstd/usb.h"
 #include "usb.h"
 #include "app_config.h"
 #include "dfu.h"
+#include "stdint.h"
+#include "tl_snv.h"
 
 static uint8_t ep_toggle = 0;
 static uint8_t ep_buf[33];
@@ -63,14 +64,6 @@ void usb_connection_poll()
     else
     {
         usb_hid_state = 2;
-    }
-}
-
-void usb_hid_report_handler(uint8_t report_id, uint8_t len, hid_rx_packet_t *pkt)
-{
-    if (report_id == 0xB2 && len == 0x20)
-    {
-        // hid_flash_handler((uint8_t *)pkt);
     }
 }
 
@@ -378,6 +371,35 @@ void hid_flash_handler(hid_rx_packet_t *packet)
         break;
 
     case REBOOT:
+        if (is_end_of_file == 0)
+            break;
+
+        if (verify_firmware_image() == 0)
+        {
+            uint8_t knlt_byte = 'K';
+            uint8_t zero_byte = 0;
+
+            flash_page_program(ota_program_offset + 8, 1, &knlt_byte);
+
+            uint32_t boot_addr = 8;
+            if (ota_program_offset == 0)
+            {
+                boot_addr = ota_program_bootAddr + 8;
+            }
+
+            flash_page_program(boot_addr, 1, &zero_byte);
+            chip_config_init();
+
+            sleep_us(10000);
+            sleep_us(100000);
+            rf_reboot(0);
+        }
+        else
+        {
+            sleep_us(100000);
+            rf_reboot(0);
+        }
+
         break;
 
     case DEBUG:
@@ -407,10 +429,63 @@ void usb_hid_init(void)
                                   FLD_CTRL_EP_AUTO_CFG);
 }
 
+void usb_hid_report_handler(uint8_t report_id, uint8_t len, hid_rx_packet_t *pkt)
+{
+    if (report_id == 0xB2 && len == 0x20)
+    {
+        hid_flash_handler(pkt);
+    }
+}
+
+void usb_irq_handler(void)
+{
+    usb_handle_irq();
+
+    if (reg_irq_src & FLD_IRQ_USB_RST_EN)
+    {
+        rf_tx_header_en = 1;
+        reg_irq_src3 = BIT(1);
+        for (int i = 0; i < 8; i++)
+        {
+            reg_usb_ep_ctrl(i) = 0;
+            usb_ep_data_toggle[i] = 0;
+        }
+    }
+
+    /* Handle EP5 OUT - HID report from host */
+    if (!(reg_irq_src & 8) && (reg_usb_irq & BIT(5)))
+    {
+        reg_usb_irq = BIT(5);
+
+        uint8_t len = reg_usb_ep_ptr(4);
+        reg_usb_ep_ptr(4) = 0;
+
+        static uint8_t report_id;
+        static hid_rx_packet_t rx_pkt;
+
+        if (len != 0)
+        {
+            uint8_t *buf = (uint8_t *)&report_id;
+            for (uint8_t i = 0; i < len; i++)
+            {
+                buf[i] = reg_usb_ep_dat(5);
+            }
+        }
+
+        reg_usb_ep_ctrl(5) = usb_ep_data_toggle[5] ? 9 : 5;
+        usb_ep_data_toggle[5] ^= 1;
+
+        if (len != 0)
+        {
+            usb_hid_report_handler(report_id, len - 1, &rx_pkt);
+        }
+    }
+}
+
 void usb_poll(void)
 
 {
     usb_connection_poll();
-    usb_handle_irq();
+    usb_irq_handler();
     // flash_poll();
 }

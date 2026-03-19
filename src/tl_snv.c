@@ -2,6 +2,8 @@
 #include "drivers/B87/flash.h"
 #include "flash/flash_mid13325e.h"
 #include "flash/flash_mid1360c8.h"
+#include "usb.h"
+#include "pm.h"
 #include "stdint.h"
 #include "timer.h"
 
@@ -111,6 +113,20 @@ int flash_read_sector(int flash_base, void *buf, int record_size)
     return offset;
 }
 
+void chip_config_init(void)
+{
+    flash_mid_e flash_mid = flash_read_mid();
+
+    if (flash_mid == MID13325E)
+    {
+        flash_lock_mid13325e(0x18);
+    }
+    else if (flash_mid == MID1360C8)
+    {
+        flash_lock_mid1360c8(0x18);
+    }
+}
+
 void flash_unlock_by_jedec_id(void)
 {
     flash_mid_e flash_mid = flash_read_mid();
@@ -123,4 +139,36 @@ void flash_unlock_by_jedec_id(void)
     {
         flash_unlock_mid1360c8();
     }
+}
+
+uint32_t verify_firmware_image(void)
+{
+    uint32_t firmware_buf;
+    flash_read_data(ota_program_offset + 24, 4, (uint8_t *)&firmware_buf);
+
+    uint32_t num_chunks = (firmware_buf << 8) >> 16;
+    uint32_t crc = 0xFFFFFFFE;
+
+    uint8_t chunk[0x100];
+
+    for (int i = 0; i < num_chunks; i++)
+    {
+        flash_read_data(ota_program_offset + 0x100 * i, 0x100, chunk);
+
+        if ((i == 0) && (chunk[8] == 0xFF))
+        {
+            chunk[8] = 'K';
+        }
+
+        crc = crc32_update(crc, chunk, 0x100);
+    }
+
+    uint32_t remainder = firmware_buf & 0xFF;
+    if (remainder != 0)
+    {
+        flash_read_data(ota_program_offset + firmware_buf - remainder, remainder, chunk);
+        crc = crc32_update(crc, chunk, remainder);
+    }
+
+    return crc & 0xFF;
 }

@@ -3,8 +3,10 @@
 #include "connection.h"
 #include "tl_snv.h"
 #include "led.h"
+#include <pm.h>
 
 uint8_t dfu_active;
+uint8_t rf_channel;
 adc_state_t adc_state;
 
 uint32_t flash_timeout_1;
@@ -48,4 +50,18 @@ uint32_t dfu_hardware_init(void)
     flash_set_timeout(1000);
 
     return 1;
+}
+
+void set_rf_channel(uint8_t channel)
+{
+    rf_channel = channel;
+    analog_write(DEEP_ANA_REG0, channel);
+    return;
+}
+
+void rf_reboot(uint8_t channel)
+{
+    set_rf_channel(channel);
+    start_reboot();
+    return;
 }

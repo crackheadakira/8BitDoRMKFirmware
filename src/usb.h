@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <pm.h>
 
 typedef enum
 {
@@ -57,3 +58,4 @@ extern uint8_t tx_packet_buffer[64];
 
 void usb_hid_init(void);
 void usb_poll(void);
+uint32_t crc32_update(uint32_t crc, const uint8_t *data, size_t length);

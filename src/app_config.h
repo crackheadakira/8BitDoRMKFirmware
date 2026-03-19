@@ -21,4 +21,7 @@
 #define BLE_AUDIO_ENABLE 0
 #define REMOTE_IR_ENABLE 0
 
+#define MODULE_USB_ENABLE 1
+#define USB_KEYBOARD_ENABLE 1
+
 #endif

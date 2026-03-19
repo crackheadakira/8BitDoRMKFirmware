@@ -21,6 +21,9 @@ uint8_t saved_conn_mode;
 uint8_t saved_profile_id;
 uint8_t saved_sleep_state;
 
+uint32_t flash_bank_address_1;
+uint32_t flash_bank_address_2;
+
 void irq_handler(void)
 {
 }
@@ -28,6 +31,28 @@ void irq_handler(void)
 uint32_t ble_stack_param_init(void)
 {
     return 0;
+}
+
+void flash_set_bank_addrs(flash_mid_e flash_mid)
+{
+    uint32_t flash_capacity = (flash_mid & 0x00FF0000) >> 16;
+
+    if (flash_capacity == FLASH_SIZE_512K)
+    {
+        flash_bank_address_1 = 0x76000;
+        flash_bank_address_2 = 0x77000;
+    }
+    else if (flash_capacity == FLASH_SIZE_1M)
+    {
+        flash_bank_address_1 = 0xFF000;
+        flash_bank_address_2 = 0xFE000;
+    }
+    else
+    {
+        while (1)
+        {
+        } // unsupported flash size
+    }
 }
 
 int main(void)
@@ -38,14 +63,16 @@ int main(void)
 
     gpio_init(has_mcu_awoken);
 
+    /*
     if (has_mcu_awoken == 0)
     {
         conn_mode_init();
     }
+    */
 
     clock_init(SYS_CLK_48M_Crystal);
 
-    if (has_mcu_awoken == 0)
+    /*if (has_mcu_awoken == 0)
     {
         // TODO: Create a flash struct that then will be used for calculation
         // as 847b70 will be set to 0x20000 - *847b84.
@@ -110,10 +137,28 @@ int main(void)
 
         uint8_t nv_word_buf[4];
         int nv_word_offset = flash_read_sector(0x73000, nv_word_buf, 0x04);
+    }*/
+
+    //
+    flash_mid_e flash_mid = flash_read_mid();
+
+    if (flash_mid == MID13325E)
+    {
+        flash_lock_mid13325e(0x18);
     }
+    else if (flash_mid == MID1360C8)
+    {
+        flash_lock_mid1360c8(0x18);
+    }
+
+    flash_set_bank_addrs(flash_mid);
+
+    // usb_hid_init();
+    irq_enable();
 
     while (1)
     {
+        // usb_poll();
     }
 
     return 0;

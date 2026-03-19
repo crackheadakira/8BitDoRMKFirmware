@@ -1,6 +1,7 @@
 #include <stdint.h>
 
-typedef struct __attribute__((packed)) {
+typedef struct __attribute__((packed))
+{
     uint8_t length;
     uint8_t inv_length;
     uint8_t magic_high;
@@ -10,7 +11,8 @@ typedef struct __attribute__((packed)) {
     uint16_t checksum;
 } dfu_packet_t;
 
-enum {
+enum
+{
     QUERY_DEVICE_INFO = 0x60,
     GET_CAPABILITIES = 0x61,
     ENTER_DFU_MODE = 0x62,

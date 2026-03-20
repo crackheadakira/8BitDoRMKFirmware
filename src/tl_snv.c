@@ -2,7 +2,7 @@
 #include "drivers/B87/flash.h"
 #include "flash/flash_mid13325e.h"
 #include "flash/flash_mid1360c8.h"
-#include "usb.h"
+#include "kbd_usb.h"
 #include "pm.h"
 #include "stdint.h"
 #include "timer.h"
@@ -16,9 +16,22 @@
 #define SECTOR_SIZE 0x1000
 #define SECTOR_SIZE_LIMIT 3000
 
-size_t memcount_ne(const unsigned char *buffer, unsigned char target, size_t length)
+/**
+ * @brief       Counts the number of bytes in a buffer that differ from a target value.
+ *
+ * @param       buffer  Pointer to the buffer to scan.
+ * @param       target  Byte value to compare each element against.
+ * @param       length  Number of bytes to scan from the start of buffer
+ *
+ * @return      Count of bytes that did not match target.
+ *
+ * @fw_addr     0x000080AC
+ * @fw_ver      1.3.6r
+ * @source      re
+ */
+static size_t memcount_ne(const unsigned char *buffer, unsigned char target, size_t length)
 {
-    short count = 0;
+    size_t count = 0;
 
     for (int i = 0; i < length; i++)
     {
@@ -46,9 +59,7 @@ int flash_read_wear_leveled(int flash_base, void *buf, size_t record_size)
         flash_read_data(flash_base + offset, record_size, buf);
 
         if (memcount_ne(buf, 0xFF, record_size) == 0)
-        {
             break;
-        }
     }
 
     offset -= record_size;
@@ -84,7 +95,6 @@ int flash_read_sector(int flash_base, void *buf, int record_size)
     {
         flash_read_data(flash_base + offset, record_size, buf);
 
-        // If the record is entirely 0xFF (erased flash), we found the end of the data
         if (memcount_ne(buf, 0xFF, record_size) == 0)
             break;
     }
@@ -113,7 +123,7 @@ int flash_read_sector(int flash_base, void *buf, int record_size)
     return offset;
 }
 
-void chip_config_init(void)
+void flash_lock_by_mid(void)
 {
     flash_mid_e flash_mid = flash_read_mid();
 
@@ -127,7 +137,7 @@ void chip_config_init(void)
     }
 }
 
-void flash_unlock_by_jedec_id(void)
+void flash_unlock_by_mid(void)
 {
     flash_mid_e flash_mid = flash_read_mid();
 
@@ -139,36 +149,4 @@ void flash_unlock_by_jedec_id(void)
     {
         flash_unlock_mid1360c8();
     }
-}
-
-uint32_t verify_firmware_image(void)
-{
-    uint32_t firmware_buf;
-    flash_read_data(ota_program_offset + 24, 4, (uint8_t *)&firmware_buf);
-
-    uint32_t num_chunks = (firmware_buf << 8) >> 16;
-    uint32_t crc = 0xFFFFFFFE;
-
-    uint8_t chunk[0x100];
-
-    for (int i = 0; i < num_chunks; i++)
-    {
-        flash_read_data(ota_program_offset + 0x100 * i, 0x100, chunk);
-
-        if ((i == 0) && (chunk[8] == 0xFF))
-        {
-            chunk[8] = 'K';
-        }
-
-        crc = crc32_update(crc, chunk, 0x100);
-    }
-
-    uint32_t remainder = firmware_buf & 0xFF;
-    if (remainder != 0)
-    {
-        flash_read_data(ota_program_offset + firmware_buf - remainder, remainder, chunk);
-        crc = crc32_update(crc, chunk, remainder);
-    }
-
-    return crc & 0xFF;
 }

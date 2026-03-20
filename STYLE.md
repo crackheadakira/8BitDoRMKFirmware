@@ -1,6 +1,31 @@
 # Style
 
-This is a documentation meant to aid in writing documentation for this software.
+This document is meant to aid in writing documentation for this software.
+
+## Table of Contents
+
+- [Comments](#comments)
+    - [Functions](#functions)
+    - [Inline](#inline)
+    - [File Headers](#file-headers)
+    - [Structs](#structs)
+    - [Constants](#constants)
+- [Naming Conventions](#naming-conventions)
+    - [Files](#files)
+    - [Functions](#functions-1)
+    - [Variables](#variables)
+    - [Types](#types)
+    - [Constants](#constants-1)
+- [File Structure](#file-structure)
+    - [C File Structure](#c-file-structure)
+    - [Header File Structure](#header-file-structure)
+- [Reverse Engineering Conventions](#reverse-engineering-conventions)
+    - [Address References](#address-references)
+    - [Ghidra Names](#ghidra-names)
+    - [Unknown Behavior](#unknown-behavior)
+    - [SDK Boundaries](#sdk-boundaries)
+- [Global State](#global-state)
+- [Function Complexity](#function-complexity)
 
 ## Comments
 

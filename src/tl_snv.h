@@ -1,7 +1,7 @@
 /**
  * @file    tl_snv.h
  *
- * @brief   Header file for custom functions related to flash.
+ * @brief   Header file for functions related to flash.
  *
  * @author  crackheadakira
  * @date    March 20, 2026
@@ -10,7 +10,7 @@
  */
 
 #pragma once
-#include <stddef.h>
+#include "common/types.h"
 #include <stdint.h>
 
 extern uint32_t flash_bank_address_1;
@@ -53,7 +53,7 @@ extern uint32_t flash_timeout_1;
  * @fw_ver  1.3.6r
  * @source  re
  */
-int flash_read_wear_leveled(int flash_base, void *buf, size_t record_size);
+int32_t flash_read_wear_leveled(uint32_t flash_base, void *buf, size_t record_size);
 
 /**
  * @brief   Reads the most recent valid record from a single flash sector.
@@ -90,7 +90,7 @@ int flash_read_wear_leveled(int flash_base, void *buf, size_t record_size);
  * @fw_ver  1.3.6r
  * @source  re
  */
-int flash_read_sector(int flash_base, void *buf, int record_size);
+int32_t flash_read_sector(uint32_t flash_base, void *buf, size_t record_size);
 
 /**
  * @brief   Locks flash and routes it to it's respective flash_lock

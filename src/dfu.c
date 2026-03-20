@@ -1,9 +1,9 @@
+#include "drivers/B87/lib/include/pm.h"
 #include "stdint.h"
 #include "app_battery.h"
 #include "connection.h"
 #include "tl_snv.h"
 #include "led.h"
-#include <pm.h>
 
 uint8_t dfu_active;
 uint8_t rf_channel;
@@ -37,15 +37,15 @@ uint32_t dfu_hardware_init(void)
     {
         if (10 < adc_state.battery_percent)
         {
-            flash_unlock_by_jedec_id();
+            flash_unlock_by_mid();
         }
     }
     else
     {
-        flash_unlock_by_jedec_id();
+        flash_unlock_by_mid();
     }
 
-    ui_set_led_dfu_pattern(6, 6, 0, 300);
+    led_set_dfu_pattern(6, 6, 0, 300);
 
     flash_set_timeout(1000);
 

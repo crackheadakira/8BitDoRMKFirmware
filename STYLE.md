@@ -167,8 +167,8 @@ Files map directly to prefixes used in their functions:
 
 1. File header comment
 2. Includes (system headers, then SDK headers, then local headers)
-3. Private constants and macros
-4. Private type definitions
+3. Private type definitions
+4. Private constants and macros
 5. Private global variables (`static`)
 6. Public global variables (with `extern` in matching `.h`)
 7. Private function prototypes (`static`)
@@ -180,8 +180,8 @@ Files map directly to prefixes used in their functions:
 1. File header comment
 2. `#pragma once`
 3. Includes required by this header only
-4. Public constants and macros
-5. Public type definitions
+4. Public type definitions
+5. Public constants and macros
 6. `extern` declarations for public globals
 7. Public function prototypes
 

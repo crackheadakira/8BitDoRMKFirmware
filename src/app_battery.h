@@ -1,4 +1,13 @@
-// app_battery.h
+/**
+ * @file    app_battery.h
+ *
+ * @brief   Header file for functions related to the keyboard's battery.
+ *
+ * @author  crackheadakira
+ * @date    March 20, 2026
+ *
+ * @fw_ver  1.3.6r
+ */
 #ifndef APP_BATTERY_H
 #define APP_BATTERY_H
 

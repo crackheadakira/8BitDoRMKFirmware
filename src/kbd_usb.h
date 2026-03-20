@@ -1,5 +1,17 @@
+/**
+ * @file    kbd_usb.h
+ *
+ * @brief   Header file for functions related to USB HID.
+ *
+ * @author  crackheadakira
+ * @date    March 20, 2026
+ *
+ * @fw_ver  1.3.6r
+ */
+
+#pragma once
+#include <common/types.h>
 #include <stdint.h>
-#include <pm.h>
 
 typedef enum
 {
@@ -52,10 +64,8 @@ extern uint32_t running_crc_bank0;
 extern uint32_t running_crc_bank1;
 
 extern uint8_t usb_ep_data_toggle[8];
-
 extern uint8_t tx_packet_buffer[64];
 #define rx_packet_buffer (tx_packet_buffer + 32)
 
 void usb_hid_init(void);
 void usb_poll(void);
-uint32_t crc32_update(uint32_t crc, const uint8_t *data, size_t length);

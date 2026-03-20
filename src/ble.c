@@ -1,8 +1,7 @@
 #include "vendor/common/ble_flash.h"
-#include "ble.h"
-#include "stdint.h"
 #include "stack/ble/ble.h"
 #include "driver_ext/ext_misc.h"
+#include "ble.h"
 
 #define DEVICE_NAME_LEN 21
 

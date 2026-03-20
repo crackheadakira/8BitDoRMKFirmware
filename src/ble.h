@@ -1,7 +1,19 @@
+/**
+ * @file    ble.h
+ *
+ * @brief   Header file for functions related to BLE.
+ *
+ * @author  crackheadakira
+ * @date    March 20, 2026
+ *
+ * @fw_ver  1.3.6r
+ */
+
+#pragma once
+#include <stdint.h>
+
 #ifndef BLE_H
 #define BLE_H
-
-#include <stdint.h>
 
 extern uint8_t mac_public[6];
 extern uint8_t mac_random_static[6];

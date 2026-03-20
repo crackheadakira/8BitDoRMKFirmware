@@ -1,9 +1,9 @@
 #include "application/usbstd/usb.h"
-#include "register.h"
+#include "drivers/B87/register.h"
+
 #include "kbd_usb.h"
 #include "app_config.h"
 #include "dfu.h"
-#include "stdint.h"
 #include "tl_snv.h"
 
 uint8_t usb_ep_data_toggle[8];
@@ -24,7 +24,7 @@ uint16_t packet_counter;
 uint32_t running_crc_bank0;
 uint32_t running_crc_bank1;
 
-uint32_t crc32_update(uint32_t crc, const uint8_t *data, size_t length)
+static uint32_t crc32_update(uint32_t crc, const uint8_t *data, size_t length)
 {
     for (size_t i = 0; i < length; i++)
     {

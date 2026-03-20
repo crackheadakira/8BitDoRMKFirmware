@@ -1,8 +1,17 @@
-#include "stdint.h"
-#include <stdbool.h>
+/**
+ * @file    connection.h
+ *
+ * @brief   Header file for functions related to UNSURE.
+ *
+ * @author  crackheadakira
+ * @date    March 20, 2026
+ *
+ * @fw_ver  1.3.6r
+ */
 
-void conn_mode_init();
-bool is_wireless_mode(void);
+#pragma once
+#include <stdint.h>
+#include <common/types.h>
 
 typedef struct
 {
@@ -17,11 +26,13 @@ typedef struct
 
 typedef struct
 {
-    uint8_t main_mode; // 0 = USB, non-zero = BLE/2.4GHz
+    uint8_t main_mode; /* 0 = USB, non-zero = BLE/2.4GHz */
     uint8_t bt_active;
     uint8_t sample_idx;
     uint8_t state_flags;
 } connection_mode_t;
 
-extern conn_state_t conn_state;
 extern connection_mode_t connection_mode;
+
+void conn_mode_init();
+bool is_wireless_mode(void);

@@ -1,11 +1,11 @@
-#include "common/string.h"
+#include "kbd_usb.h"
+
+#include "drivers/B87/lib/include/pm.h"
 #include "drivers/B87/flash.h"
+#include "drivers/B87/timer.h"
 #include "flash/flash_mid13325e.h"
 #include "flash/flash_mid1360c8.h"
-#include "kbd_usb.h"
-#include "pm.h"
-#include "stdint.h"
-#include "timer.h"
+#include "common/string.h"
 
 #define FLASH_BASE_1 0x69000
 #define FLASH_BASE_2 0x69800
@@ -29,7 +29,7 @@
  * @fw_ver      1.3.6r
  * @source      re
  */
-static size_t memcount_ne(const unsigned char *buffer, unsigned char target, size_t length)
+static size_t memcount_ne(const uint8_t *buffer, uint8_t target, size_t length)
 {
     size_t count = 0;
 
@@ -44,7 +44,7 @@ static size_t memcount_ne(const unsigned char *buffer, unsigned char target, siz
     return count;
 }
 
-int flash_read_wear_leveled(int flash_base, void *buf, size_t record_size)
+int32_t flash_read_wear_leveled(uint32_t flash_base, void *buf, size_t record_size)
 {
     size_t scan_limit;
 
@@ -85,7 +85,7 @@ int flash_read_wear_leveled(int flash_base, void *buf, size_t record_size)
     return offset;
 }
 
-int flash_read_sector(int flash_base, void *buf, int record_size)
+int32_t flash_read_sector(uint32_t flash_base, void *buf, size_t record_size)
 {
     if (record_size >= SECTOR_SIZE)
         return 0;

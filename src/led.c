@@ -1,9 +1,8 @@
-#include "stdint.h";
-#include "led.h";
+#include "led.h"
 
 led_dfu_t led_dfu;
 
-void ui_set_led_dfu_pattern(uint16_t on_ticks, uint16_t off_ticks, uint16_t blink_count, uint16_t timeout_ms)
+void led_set_dfu_pattern(uint16_t on_ticks, uint16_t off_ticks, uint16_t blink_count, uint16_t timeout_ms)
 
 {
     led_dfu.on_time = on_ticks;

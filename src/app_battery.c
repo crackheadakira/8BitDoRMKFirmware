@@ -1,7 +1,6 @@
-#include "adc.h"
+#include "drivers/B87/adc.h"
+#include "drivers/B87/gpio.h"
 #include "app_battery.h"
-#include "gpio.h"
-#include "stdint.h"
 
 adc_state_t adc_state;
 __attribute__((aligned(4))) uint16_t adc_dma_buf[32];

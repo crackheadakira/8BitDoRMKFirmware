@@ -5,7 +5,7 @@
 #include "ble.h"
 #include "connection.h"
 #include "tl_snv.h"
-#include "usb.h"
+#include "kbd_usb.h"
 
 typedef struct
 {
@@ -148,7 +148,7 @@ int main(void)
         int nv_word_offset = flash_read_sector(0x73000, nv_word_buf, 0x04);
     }*/
 
-    chip_config_init();
+    flash_lock_by_mid();
 
     flash_mid_e flash_mid = flash_read_mid();
     flash_set_bank_addrs(flash_mid);

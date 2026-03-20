@@ -1,13 +1,10 @@
-#include "register.h"
 #include "application/usbstd/usb.h"
-#include "usb.h"
+#include "register.h"
+#include "kbd_usb.h"
 #include "app_config.h"
 #include "dfu.h"
 #include "stdint.h"
 #include "tl_snv.h"
-
-static uint8_t ep_toggle = 0;
-static uint8_t ep_buf[33];
 
 uint8_t usb_ep_data_toggle[8];
 uint8_t tx_packet_buffer[64];
@@ -188,6 +185,38 @@ void hid_send_data_nack(uint8_t param_1)
 
     hid_send_response(4);
     return;
+}
+
+uint32_t verify_firmware_image(void)
+{
+    uint32_t firmware_buf;
+    flash_read_data(ota_program_offset + 24, 4, (uint8_t *)&firmware_buf);
+
+    uint32_t num_chunks = (firmware_buf << 8) >> 16;
+    uint32_t crc = 0xFFFFFFFE;
+
+    uint8_t chunk[0x100];
+
+    for (int i = 0; i < num_chunks; i++)
+    {
+        flash_read_data(ota_program_offset + 0x100 * i, 0x100, chunk);
+
+        if ((i == 0) && (chunk[8] == 0xFF))
+        {
+            chunk[8] = 'K';
+        }
+
+        crc = crc32_update(crc, chunk, 0x100);
+    }
+
+    uint32_t remainder = firmware_buf & 0xFF;
+    if (remainder != 0)
+    {
+        flash_read_data(ota_program_offset + firmware_buf - remainder, remainder, chunk);
+        crc = crc32_update(crc, chunk, remainder);
+    }
+
+    return crc & 0xFF;
 }
 
 void hid_flash_handler(hid_rx_packet_t *packet)
@@ -388,7 +417,7 @@ void hid_flash_handler(hid_rx_packet_t *packet)
             }
 
             flash_page_program(boot_addr, 1, &zero_byte);
-            chip_config_init();
+            flash_lock_by_mid();
 
             sleep_us(10000);
             sleep_us(100000);
@@ -439,47 +468,7 @@ void usb_hid_report_handler(uint8_t report_id, uint8_t len, hid_rx_packet_t *pkt
 
 void usb_irq_handler(void)
 {
-    usb_handle_irq();
-
-    if (reg_irq_src & FLD_IRQ_USB_RST_EN)
-    {
-        rf_tx_header_en = 1;
-        reg_irq_src3 = BIT(1);
-        for (int i = 0; i < 8; i++)
-        {
-            reg_usb_ep_ctrl(i) = 0;
-            usb_ep_data_toggle[i] = 0;
-        }
-    }
-
-    /* Handle EP5 OUT - HID report from host */
-    if (!(reg_irq_src & 8) && (reg_usb_irq & BIT(5)))
-    {
-        reg_usb_irq = BIT(5);
-
-        uint8_t len = reg_usb_ep_ptr(4);
-        reg_usb_ep_ptr(4) = 0;
-
-        static uint8_t report_id;
-        static hid_rx_packet_t rx_pkt;
-
-        if (len != 0)
-        {
-            uint8_t *buf = (uint8_t *)&report_id;
-            for (uint8_t i = 0; i < len; i++)
-            {
-                buf[i] = reg_usb_ep_dat(5);
-            }
-        }
-
-        reg_usb_ep_ctrl(5) = usb_ep_data_toggle[5] ? 9 : 5;
-        usb_ep_data_toggle[5] ^= 1;
-
-        if (len != 0)
-        {
-            usb_hid_report_handler(report_id, len - 1, &rx_pkt);
-        }
-    }
+    // fill out
 }
 
 void usb_poll(void)

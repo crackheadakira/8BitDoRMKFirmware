@@ -25,6 +25,7 @@ BASE_CFLAGS := \
     -std=gnu99 \
     -fshort-wchar \
     -fms-extensions \
+    -include $(PROJ)/src/app_config.h \
     $(CHIP)
 
 INCLUDES := \

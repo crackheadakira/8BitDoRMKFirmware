@@ -3,6 +3,7 @@
 
 conn_state_t conn_state;
 uint32_t conn_ready_flag = 0;
+connection_mode_t connection_mode;
 
 void conn_mode_init(void)
 {

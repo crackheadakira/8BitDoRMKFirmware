@@ -85,20 +85,18 @@ This document is meant to aid in writing documentation for this software.
 
 ```c
 /**
- * @file       filename.c
- * @brief      One line description of this file's purpose.
+ * @file    filename.c
  *
- * @details    Longer description if needed. For reimplemented files,
- *             describe what original firmware functionality this covers
- *             and what was left out.
+ * @brief   One line description of this file's purpose.
  *
- * @fw_ver     1.3.6r
- * @fw_addr    0x0000XXXX - 0x0000YYYY  (address range in original firmware)
+ * @details Longer description if needed. For reimplemented files,
+ *          describe what original firmware functionality this covers
+ *          and what was left out.
  *
- * @note       This file was developed through reverse engineering of the
- *             8BitDo Retro Keyboard firmware for interoperability purposes.
- *             Function names and behavior are based on Ghidra decompilation
- *             and USB packet captures. Some details may be incorrect.
+ * @author  crackheadakira
+ * @date    March 20, 2026
+ *
+ * @fw_ver  1.3.6r
  */
 ```
 

@@ -1,9 +1,9 @@
 #include "application/usbstd/usb.h"
 #include "drivers/B87/register.h"
 
-#include "kbd_usb.h"
 #include "app_config.h"
 #include "dfu.h"
+#include "kbd_usb.h"
 #include "tl_snv.h"
 
 uint8_t usb_ep_data_toggle[8];
@@ -64,7 +64,8 @@ void usb_connection_poll()
     }
 }
 
-static uint32_t usb_ep_send_stateful(uint8_t endpoint, uint8_t header, uint8_t *payload, uint32_t payload_len)
+static uint32_t usb_ep_send_stateful(uint8_t endpoint, uint8_t header,
+                                     uint8_t *payload, uint32_t payload_len)
 {
     if ((reg_irq_src << 0x1C) < 0)
     {
@@ -187,10 +188,10 @@ void hid_send_data_nack(uint8_t param_1)
     return;
 }
 
-uint32_t verify_firmware_image(void)
+static uint32_t verify_firmware_image(void)
 {
     uint32_t firmware_buf;
-    flash_read_data(ota_program_offset + 24, 4, (uint8_t *)&firmware_buf);
+    flash_read_page(ota_program_offset + 24, 4, (uint8_t *)&firmware_buf);
 
     uint32_t num_chunks = (firmware_buf << 8) >> 16;
     uint32_t crc = 0xFFFFFFFE;
@@ -199,7 +200,7 @@ uint32_t verify_firmware_image(void)
 
     for (int i = 0; i < num_chunks; i++)
     {
-        flash_read_data(ota_program_offset + 0x100 * i, 0x100, chunk);
+        flash_read_page(ota_program_offset + 0x100 * i, 0x100, chunk);
 
         if ((i == 0) && (chunk[8] == 0xFF))
         {
@@ -212,14 +213,201 @@ uint32_t verify_firmware_image(void)
     uint32_t remainder = firmware_buf & 0xFF;
     if (remainder != 0)
     {
-        flash_read_data(ota_program_offset + firmware_buf - remainder, remainder, chunk);
+        flash_read_page(ota_program_offset + firmware_buf - remainder, remainder,
+                        chunk);
         crc = crc32_update(crc, chunk, remainder);
     }
 
     return crc & 0xFF;
 }
 
-void hid_flash_handler(hid_rx_packet_t *packet)
+static void handle_query_device_info_cmd(hid_rx_packet_t *packet)
+{
+    memset(&tx_packet_buffer, 0, 64);
+    hid_tx_packet_t *tx_packet = (hid_tx_packet_t *)tx_packet_buffer;
+
+    tx_packet->payload[0] = 0xA3;
+    tx_packet->payload[1] = packet->sequence_number;
+    tx_packet->payload[2] = packet->command;
+    tx_packet->payload[3] = 0x01;
+
+    tx_packet->payload[0x0E] = 0x05;
+    tx_packet->payload[0x0F] = 0x03;
+
+    memcpy(&tx_packet->payload[4], FIRMWARE_MAGIC_NAME, 8);
+    memcpy(&tx_packet->payload[16], FIRMWARE_VERSION_LONG, 6);
+    memcpy(&tx_packet->payload[26], FIRMWARE_VERSION_SHORT, 5);
+
+    hid_send_response(0x26);
+}
+
+static void handle_cmd_get_capabilities(hid_rx_packet_t *packet)
+{
+    memset(&tx_packet_buffer, 0, 64);
+    hid_tx_packet_t *tx_packet = (hid_tx_packet_t *)tx_packet_buffer;
+
+    tx_packet->payload[4] = 0x1;
+    tx_packet->payload[0] = 0xA3;
+    tx_packet->payload[1] = packet->sequence_number;
+    tx_packet->payload[2] = packet->command;
+
+    hid_send_response(0x7);
+}
+
+static void handle_cmd_enter_dfu_mode(hid_rx_packet_t *packet)
+{
+    memset(&tx_packet_buffer, 0, 0x40);
+    hid_tx_packet_t *tx_packet = (hid_tx_packet_t *)tx_packet_buffer;
+
+    if (packet->data[0] < 0x3)
+    {
+        target_bank_id = packet->data[0];
+    }
+
+    tx_packet->payload[0] = 0xa3;
+    tx_packet->payload[2] = 'b';
+    tx_packet->payload[3] = ~-(2 < packet->data[0]);
+    tx_packet->payload[1] = packet->sequence_number;
+    hid_send_response(0x9);
+}
+
+static void handle_cmd_confirm_ready(uint8_t sequence_number)
+{
+    dfu_hardware_init();
+
+    is_dfu_initialized = 0x1;
+    current_flash_offset = 0x0;
+    packet_counter = 0x0;
+    is_end_of_file = 0x0;
+    running_crc_bank0 = 0xfffffffe;
+    running_crc_bank1 = 0xfffffffe;
+
+    hid_send_ready_ack(sequence_number, 0x63);
+}
+
+static void handle_cmd_data(hid_rx_packet_t *packet)
+{
+    is_receiving_data = 1;
+    if (is_dfu_initialized == 0)
+    {
+        hid_send_data_nack(packet->sequence_number);
+        return;
+    }
+
+    uint8_t data_len = packet->length - 4;
+    uint32_t write_len = data_len;
+
+    if (target_bank_id == 0)
+    {
+        running_crc_bank0 =
+            crc32_update(running_crc_bank0, packet->data, data_len);
+    }
+
+    // TOOD: add bank 1 support
+
+    if (is_end_of_file == 0)
+    {
+        if ((current_flash_offset & 0xFFF) == 0)
+        {
+            flash_erase_sector(ota_program_offset + current_flash_offset);
+        }
+
+        if (data_len == 16 && packet_counter < 0x3FFF)
+        {
+            if ((packet_counter == 0) && (packet->data[8] == 'K'))
+            {
+                packet->data[8] = 0xFF;
+            }
+
+            flash_page_program(ota_program_offset + current_flash_offset, 16,
+                               packet->data);
+            packet_counter += 1;
+        }
+        else if ((data_len == 4) && (packet_counter < 0xFFF))
+        {
+            flash_page_program(ota_program_offset + current_flash_offset, 4,
+                               packet->data);
+            packet_counter += 1;
+            is_end_of_file = 1;
+        }
+
+        current_flash_offset += write_len;
+        hid_send_ready_ack(packet->sequence_number, 100);
+        return;
+    }
+    current_flash_offset += write_len;
+}
+
+static void handle_cmd_commit(hid_rx_packet_t *packet)
+{
+    memset(&tx_packet_buffer, 0, 64);
+    hid_tx_packet_t *tx_packet = (hid_tx_packet_t *)tx_packet_buffer;
+
+    uint32_t crc_received =
+        (uint32_t)packet->data[3] << 24 | (uint32_t)packet->data[0] |
+        (uint32_t)packet->data[1] << 8 | (uint32_t)packet->data[2] << 16;
+
+    uint32_t crc_expected =
+        (uint32_t)packet->data[7] << 24 | (uint32_t)packet->data[4] |
+        (uint32_t)packet->data[5] << 8 | (uint32_t)packet->data[6] << 16;
+
+    if (target_bank_id == 0)
+    {
+        tx_packet->payload[4] = true;
+        if (crc_received == crc_expected)
+        {
+            tx_packet->payload[4] = crc_received != running_crc_bank0;
+        }
+    }
+    else
+    {
+        tx_packet->payload[4] = true;
+        if ((target_bank_id == 1) && (crc_received == running_crc_bank1))
+        {
+            tx_packet->payload[4] = crc_expected != running_crc_bank0;
+        }
+    }
+    tx_packet->payload[0] = 0xA3;
+    tx_packet->payload[2] = 0x65;
+    tx_packet->payload[3] = 0x00;
+    tx_packet->payload[1] = packet->sequence_number;
+
+    hid_send_response(5);
+}
+
+static void handle_cmd_reboot(hid_rx_packet_t *packet)
+{
+    if (is_end_of_file == 0)
+        return;
+
+    if (verify_firmware_image() == 0)
+    {
+        uint8_t knlt_byte = 'K';
+        uint8_t zero_byte = 0;
+
+        flash_page_program(ota_program_offset + 8, 1, &knlt_byte);
+
+        uint32_t boot_addr = 8;
+        if (ota_program_offset == 0)
+        {
+            boot_addr = ota_program_bootAddr + 8;
+        }
+
+        flash_page_program(boot_addr, 1, &zero_byte);
+        flash_lock_by_mid();
+
+        sleep_us(10000);
+        sleep_us(100000);
+        rf_reboot(0);
+    }
+    else
+    {
+        sleep_us(100000);
+        rf_reboot(0);
+    }
+}
+
+void hid_handle_flash(hid_rx_packet_t *packet)
 {
     uint16_t magic = (uint32_t)((packet->magic_high << 8) | packet->magic_low);
 
@@ -251,184 +439,35 @@ void hid_flash_handler(hid_rx_packet_t *packet)
         return;
     }
 
-    hid_tx_packet_t *tx_packet = (hid_tx_packet_t *)tx_packet_buffer;
     switch (packet->command)
     {
-
     case QUERY_DEVICE_INFO:
-        memset(&tx_packet_buffer, 0, 64);
-
-        tx_packet->payload[0] = 0xA3;
-        tx_packet->payload[1] = packet->sequence_number;
-        tx_packet->payload[2] = packet->command;
-        tx_packet->payload[3] = 0x01;
-
-        tx_packet->payload[0x0E] = 0x05;
-        tx_packet->payload[0x0F] = 0x03;
-
-        memcpy(&tx_packet->payload[4], FIRMWARE_MAGIC_NAME, 8);
-        memcpy(&tx_packet->payload[16], FIRMWARE_VERSION_LONG, 6);
-        memcpy(&tx_packet->payload[26], FIRMWARE_VERSION_SHORT, 5);
-
-        hid_send_response(0x26);
+        handle_query_device_info_cmd(packet);
         break;
 
     case GET_CAPABILITIES:
-        memset(&tx_packet_buffer, 0, 64);
-
-        tx_packet->payload[4] = 0x1;
-        tx_packet->payload[0] = 0xA3;
-        tx_packet->payload[1] = packet->sequence_number;
-        tx_packet->payload[2] = packet->command;
-
-        hid_send_response(0x7);
-
+        handle_cmd_get_capabilities(packet);
         break;
 
     case ENTER_DFU_MODE:
-        memset(&tx_packet_buffer, 0, 0x40);
-
-        if (packet->data[0] < 0x3)
-        {
-            target_bank_id = packet->data[0];
-        }
-
-        tx_packet->payload[0] = 0xa3;
-        tx_packet->payload[2] = 'b';
-        tx_packet->payload[3] = ~-(2 < packet->data[0]);
-        tx_packet->payload[1] = packet->sequence_number;
-        hid_send_response(0x9);
+        handle_cmd_enter_dfu_mode(packet);
         break;
 
     case CONFIRM_READY:
         if (magic == 0xAA56)
-        {
-            dfu_hardware_init();
-
-            is_dfu_initialized = 0x1;
-            current_flash_offset = 0x0;
-            packet_counter = 0x0;
-            is_end_of_file = 0x0;
-            running_crc_bank0 = 0xfffffffe;
-            running_crc_bank1 = 0xfffffffe;
-
-            hid_send_ready_ack(packet->sequence_number, 0x63);
-        }
-
+            handle_cmd_confirm_ready(packet->sequence_number);
         break;
 
     case DATA:
-        is_receiving_data = 1;
-        if (is_dfu_initialized == 0)
-        {
-            hid_send_data_nack(packet->sequence_number);
-            break;
-        }
-
-        uint8_t data_len = packet->length - 4;
-        uint32_t write_len = data_len;
-
-        if (target_bank_id == 0)
-        {
-            running_crc_bank0 = crc32_update(running_crc_bank0, packet->data, data_len);
-        }
-        // ignore bank 1 for now
-
-        if (is_end_of_file == 0)
-        {
-            if ((current_flash_offset & 0xFFF) == 0)
-            {
-                flash_erase_sector(ota_program_offset + current_flash_offset);
-            }
-
-            if (data_len == 16 && packet_counter < 0x3FFF)
-            {
-                if ((packet_counter == 0) && (packet->data[8] == 'K'))
-                {
-                    packet->data[8] = 0xFF;
-                }
-
-                flash_page_program(ota_program_offset + current_flash_offset, 16, packet->data);
-                packet_counter += 1;
-            }
-            else if ((data_len == 4) && (packet_counter < 0xFFF))
-            {
-                flash_page_program(ota_program_offset + current_flash_offset, 4, packet->data);
-                packet_counter += 1;
-                is_end_of_file = 1;
-            }
-
-            current_flash_offset += write_len;
-            hid_send_ready_ack(packet->sequence_number, 100);
-            return;
-        }
-        current_flash_offset += write_len;
-
+        handle_cmd_data(packet);
         break;
 
     case COMMIT:
-        memset(&tx_packet_buffer, 0, 64);
-        uint32_t crc_received = (uint32_t)packet->data[3] << 24 | (uint32_t)packet->data[0] |
-                                (uint32_t)packet->data[1] << 8 | (uint32_t)packet->data[2] << 16;
-
-        uint32_t crc_expected = (uint32_t)packet->data[7] << 24 | (uint32_t)packet->data[4] |
-                                (uint32_t)packet->data[5] << 8 | (uint32_t)packet->data[6] << 16;
-
-        if (target_bank_id == 0)
-        {
-            tx_packet->payload[4] = true;
-            if (crc_received == crc_expected)
-            {
-                tx_packet->payload[4] = crc_received != running_crc_bank0;
-            }
-        }
-        else
-        {
-            tx_packet->payload[4] = true;
-            if ((target_bank_id == 1) && (crc_received == running_crc_bank1))
-            {
-                tx_packet->payload[4] = crc_expected != running_crc_bank0;
-            }
-        }
-        tx_packet->payload[0] = 0xA3;
-        tx_packet->payload[2] = 0x65;
-        tx_packet->payload[3] = 0x00;
-        tx_packet->payload[1] = packet->sequence_number;
-
-        hid_send_response(5);
-
+        handle_cmd_commit(packet);
         break;
 
     case REBOOT:
-        if (is_end_of_file == 0)
-            break;
-
-        if (verify_firmware_image() == 0)
-        {
-            uint8_t knlt_byte = 'K';
-            uint8_t zero_byte = 0;
-
-            flash_page_program(ota_program_offset + 8, 1, &knlt_byte);
-
-            uint32_t boot_addr = 8;
-            if (ota_program_offset == 0)
-            {
-                boot_addr = ota_program_bootAddr + 8;
-            }
-
-            flash_page_program(boot_addr, 1, &zero_byte);
-            flash_lock_by_mid();
-
-            sleep_us(10000);
-            sleep_us(100000);
-            rf_reboot(0);
-        }
-        else
-        {
-            sleep_us(100000);
-            rf_reboot(0);
-        }
-
+        handle_cmd_reboot(packet);
         break;
 
     case DEBUG:
@@ -436,10 +475,9 @@ void hid_flash_handler(hid_rx_packet_t *packet)
     }
 }
 
-void usb_hid_init(void)
+void usb_init_hid(void)
 {
-    usbhw_disable_manual_interrupt(FLD_CTRL_EP_AUTO_STD |
-                                   FLD_CTRL_EP_AUTO_DESC |
+    usbhw_disable_manual_interrupt(FLD_CTRL_EP_AUTO_STD | FLD_CTRL_EP_AUTO_DESC |
                                    FLD_CTRL_EP_AUTO_CFG);
 
     reg_usb_ctrl = 0x36;
@@ -453,22 +491,22 @@ void usb_hid_init(void)
 
     usb_hid_state = 0;
 
-    usbhw_enable_manual_interrupt(FLD_CTRL_EP_AUTO_STD |
-                                  FLD_CTRL_EP_AUTO_DESC |
+    usbhw_enable_manual_interrupt(FLD_CTRL_EP_AUTO_STD | FLD_CTRL_EP_AUTO_DESC |
                                   FLD_CTRL_EP_AUTO_CFG);
 }
 
-void usb_hid_report_handler(uint8_t report_id, uint8_t len, hid_rx_packet_t *pkt)
+void usb_hid_report_handler(uint8_t report_id, uint8_t len,
+                            hid_rx_packet_t *pkt)
 {
     if (report_id == 0xB2 && len == 0x20)
     {
-        hid_flash_handler(pkt);
+        hid_handle_flash(pkt);
     }
 }
 
 void usb_irq_handler(void)
 {
-    // fill out
+    // TODO: fill out
 }
 
 void usb_poll(void)

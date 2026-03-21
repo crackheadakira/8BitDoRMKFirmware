@@ -10,8 +10,8 @@
  */
 
 #pragma once
-#include <common/types.h>
 #include <stdint.h>
+#include <common/types.h>
 
 typedef enum
 {
@@ -67,5 +67,5 @@ extern uint8_t usb_ep_data_toggle[8];
 extern uint8_t tx_packet_buffer[64];
 #define rx_packet_buffer (tx_packet_buffer + 32)
 
-void usb_hid_init(void);
+void usb_init_hid(void);
 void usb_poll(void);

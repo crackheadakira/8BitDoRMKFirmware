@@ -1,4 +1,5 @@
 #include "drivers/B87/gpio.h"
+
 #include "connection.h"
 
 conn_state_t conn_state;

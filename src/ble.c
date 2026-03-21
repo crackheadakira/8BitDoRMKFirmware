@@ -1,6 +1,7 @@
 #include "vendor/common/ble_flash.h"
-#include "stack/ble/ble.h"
 #include "driver_ext/ext_misc.h"
+#include "stack/ble/ble.h"
+
 #include "ble.h"
 
 #define DEVICE_NAME_LEN 21
@@ -14,7 +15,7 @@ void ble_identity_init(void)
     random_generator_init();
 
     u8 mac_address[4];
-    flash_read_data(flash_sector_mac_address, 4, mac_address);
+    flash_read_page(flash_sector_mac_address, 4, mac_address);
 
     if (*(uint32_t *)mac_address == 0xFFFFFFFF)
     {
@@ -42,7 +43,7 @@ void ble_identity_init(void)
 void ble_identity_init_incorrect(void)
 {
     u8 mac_read[8];
-    flash_read_data(flash_sector_mac_address, 8, mac_read);
+    flash_read_page(flash_sector_mac_address, 8, mac_read);
 
     u8 value_rand[5];
     generateRandomNum(5, value_rand);

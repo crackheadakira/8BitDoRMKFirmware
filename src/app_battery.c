@@ -1,5 +1,6 @@
 #include "drivers/B87/adc.h"
 #include "drivers/B87/gpio.h"
+
 #include "app_battery.h"
 
 adc_state_t adc_state;

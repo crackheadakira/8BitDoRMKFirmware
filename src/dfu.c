@@ -1,9 +1,11 @@
-#include "drivers/B87/lib/include/pm.h"
 #include "stdint.h"
+
+#include "drivers/B87/lib/include/pm.h"
+
 #include "app_battery.h"
 #include "connection.h"
-#include "tl_snv.h"
 #include "led.h"
+#include "tl_snv.h"
 
 uint8_t dfu_active;
 uint8_t rf_channel;

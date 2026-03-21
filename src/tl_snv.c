@@ -1,11 +1,11 @@
-#include "kbd_usb.h"
-
-#include "drivers/B87/lib/include/pm.h"
+#include "common/string.h"
 #include "drivers/B87/flash.h"
-#include "drivers/B87/timer.h"
 #include "flash/flash_mid13325e.h"
 #include "flash/flash_mid1360c8.h"
-#include "common/string.h"
+#include "drivers/B87/lib/include/pm.h"
+#include "drivers/B87/timer.h"
+
+#include "kbd_usb.h"
 
 #define FLASH_BASE_1 0x69000
 #define FLASH_BASE_2 0x69800
@@ -56,7 +56,7 @@ int32_t flash_read_wear_leveled(uint32_t flash_base, void *buf, size_t record_si
     int offset;
     for (offset = 0; offset < scan_limit; offset += record_size)
     {
-        flash_read_data(flash_base + offset, record_size, buf);
+        flash_read_page(flash_base + offset, record_size, buf);
 
         if (memcount_ne(buf, 0xFF, record_size) == 0)
             break;
@@ -71,14 +71,14 @@ int32_t flash_read_wear_leveled(uint32_t flash_base, void *buf, size_t record_si
     }
     else if (offset <= WEAR_LEVEL_LIMIT_1)
     {
-        flash_read_data(flash_base + offset, record_size, buf);
+        flash_read_page(flash_base + offset, record_size, buf);
     }
     else
     {
         flash_erase_sector(flash_base);
         sleep_us(10);
 
-        flash_read_data(flash_base, record_size, buf);
+        flash_read_page(flash_base, record_size, buf);
         offset = 0;
     }
 
@@ -93,7 +93,7 @@ int32_t flash_read_sector(uint32_t flash_base, void *buf, size_t record_size)
     int offset;
     for (offset = 0; offset <= (SECTOR_SIZE - record_size); offset += record_size)
     {
-        flash_read_data(flash_base + offset, record_size, buf);
+        flash_read_page(flash_base + offset, record_size, buf);
 
         if (memcount_ne(buf, 0xFF, record_size) == 0)
             break;
@@ -104,18 +104,18 @@ int32_t flash_read_sector(uint32_t flash_base, void *buf, size_t record_size)
 
     if (offset < 0)
     {
-        flash_read_data(flash_base, record_size, buf);
+        flash_read_page(flash_base, record_size, buf);
     }
     else
     {
-        flash_read_data(flash_base + offset, record_size, buf);
+        flash_read_page(flash_base + offset, record_size, buf);
 
         if (offset > SECTOR_SIZE_LIMIT)
         {
             flash_erase_sector(flash_base);
             sleep_us(10);
 
-            flash_read_data(flash_base, record_size, buf);
+            flash_read_page(flash_base, record_size, buf);
             offset = 0;
         }
     }

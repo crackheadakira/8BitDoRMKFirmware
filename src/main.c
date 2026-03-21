@@ -1,11 +1,13 @@
 #include "stack/ble/ble.h"
+
 #include "drivers.h"
+
 #include "app_battery.h"
 #include "app_config.h"
 #include "ble.h"
 #include "connection.h"
-#include "tl_snv.h"
 #include "kbd_usb.h"
+#include "tl_snv.h"
 
 typedef struct
 {
@@ -81,28 +83,19 @@ int main(void)
 
     clock_init(SYS_CLK_48M_Crystal);
 
-    /*if (has_mcu_awoken == 0)
+    /*
+    if (has_mcu_awoken == 0)
     {
-        // TODO: Create a flash struct that then will be used for calculation
-        // as 847b70 will be set to 0x20000 - *847b84.
-        // *847b84 is being set by a function inside of cpu_wakeup_init.
-        uint32_t sram_value_unknown = 0x20000;
-        initialize_adc(sram_value_unknown + (GPIO_PA3 | GPIO_PA4), B3P);
-        initialize_adc(sram_value_unknown - GPIO_PA2, B3P);
-        initialize_adc(sram_value_unknown + GPIO_PA1, B3P);
+        uint32_t ota_flash = ota_program_bootAddr - ota_program_offset;
+        flash_read_page(ota_flash + 24, 4, (unsigned char *)&has_mcu_awoken);
+        flash_read_page(ota_flash + (has_mcu_awoken - 4), 4, device_state.ptr_peripheral_ctrl);
+        flash_read_page(ota_flash + 2, 4, device_state.ptr_io_map);
+
+        flash_lock_by_mid();
 
         flash_mid_e flash_mid = flash_read_mid();
 
-        if (flash_mid == MID13325E)
-        {
-            flash_lock_mid13325e(0x18);
-        }
-        else if (flash_mid == MID1360C8)
-        {
-            flash_lock_mid1360c8(0x18);
-        }
-
-        // The value of (mid&0x00ff0000)>>16 reflects flash capacity.
+        // The value of (mid & 0x00FF0000) >> 16 reflects flash capacity.
         uint32_t flash_capacity = (flash_mid & 0x00FF0000) >> 16;
 
         if (flash_capacity == FLASH_SIZE_512K)
@@ -146,14 +139,15 @@ int main(void)
 
         uint8_t nv_word_buf[4];
         int nv_word_offset = flash_read_sector(0x73000, nv_word_buf, 0x04);
-    }*/
+    }
+    */
 
     flash_lock_by_mid();
 
     flash_mid_e flash_mid = flash_read_mid();
     flash_set_bank_addrs(flash_mid);
 
-    usb_hid_init();
+    usb_init_hid();
     irq_enable();
 
     while (1)

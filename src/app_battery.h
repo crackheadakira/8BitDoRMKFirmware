@@ -8,8 +8,6 @@
  *
  * @fw_ver  1.3.6r
  */
-#ifndef APP_BATTERY_H
-#define APP_BATTERY_H
 
 #include <stdint.h>
 #include <gpio.h>
@@ -45,5 +43,3 @@ extern adc_state_t adc_state;
 
 uint8_t battery_level_calc(int16_t raw_adc_val);
 void initialize_adc(GPIO_PinTypeDef gpio_pin, ADC_InputPchTypeDef adc_channel);
-
-#endif

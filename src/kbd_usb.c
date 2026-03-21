@@ -264,8 +264,8 @@ static void handle_cmd_enter_dfu_mode(hid_rx_packet_t *packet)
         target_bank_id = packet->data[0];
     }
 
-    tx_packet->payload[0] = 0xa3;
-    tx_packet->payload[2] = 'b';
+    tx_packet->payload[0] = 0xA3;
+    tx_packet->payload[2] = 0x62;
     tx_packet->payload[3] = ~-(2 < packet->data[0]);
     tx_packet->payload[1] = packet->sequence_number;
     hid_send_response(0x9);

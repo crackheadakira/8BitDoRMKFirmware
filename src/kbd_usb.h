@@ -75,3 +75,4 @@ uint8_t *usbdesc_get_configuration(void);
 uint8_t *usbdesc_get_language(void);
 uint8_t *usbdesc_get_vendor(void);
 uint8_t *usbdesc_get_product(void);
+uint8_t *usbdesc_get_keyboard(void);

@@ -32,3 +32,6 @@
 #define STRING_VENDOR L"8BitDo"
 #define STRING_PRODUCT L"8BitDo Retro Keyboard"
 #define STRING_SERIAL L"SN1234567890"
+
+#define EV_USB_OUT_DATA 1
+#define EV_USB_SET_REPORT 2

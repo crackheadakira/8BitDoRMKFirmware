@@ -71,7 +71,9 @@ C_SRCS := \
     $(SDK)/drivers/B87/flash.c \
     $(SDK)/drivers/B87/adc.c \
     $(SDK)/vendor/common/ble_flash.c \
-    $(SDK)/application/usbstd/usb.c
+    $(SDK)/application/usbstd/usb.c \
+    $(SDK)/application/app/usbkb.c \
+    $(SDK)/application/app/usbmouse.c
 
 S_SRCS := $(SDK)/boot/B87/cstartup_827x.S
 

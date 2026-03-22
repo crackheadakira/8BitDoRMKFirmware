@@ -1,4 +1,5 @@
 #include "application/usbstd/usb.h"
+#include "connection.h"
 #include "drivers/B87/register.h"
 
 #include "app_config.h"
@@ -6,10 +7,178 @@
 #include "kbd_usb.h"
 #include "tl_snv.h"
 
+typedef struct
+{
+    u8 hid_state;
+    u8 pad_1;
+    u8 pad_2;
+    u8 pad_3;
+    u32 send_timer;
+    u8 conn_state;
+    u8 pad_4;
+    u8 pad_5;
+    u8 pad_6;
+    u32 send_last_tick;
+    u32 disconnect_timer;
+    u32 send_timestamp;
+} hid_state_t;
+
+const USB_Descriptor_Device_t device_desc = {
+    .Header = {
+        .Size = sizeof(USB_Descriptor_Device_t),
+        .Type = DTYPE_Device,
+    },
+    .USBSpecification = 0x0110,
+    .Class = 0x00,
+    .SubClass = 0x00,
+    .Protocol = 0x00,
+    .Endpoint0Size = 0x08,
+    .VendorID = 0x2DC8,
+    .ProductID = 0x5200,
+    .ReleaseNumber = 0x0100,
+    .ManufacturerStrIndex = 0x01,
+    .ProductStrIndex = 0x02,
+    .SerialNumStrIndex = 0x03,
+    .NumberOfConfigurations = 0x01,
+};
+
+const USB_Descriptor_Configuration_t configuration_desc = {
+    .Config = {
+        .Header = {
+            .Size = sizeof(USB_Descriptor_Configuration_Hdr_t),
+            .Type = DTYPE_Configuration,
+        },
+        .TotalConfigurationSize = sizeof(USB_Descriptor_Configuration_t),
+        .TotalInterfaces = 3,
+        .ConfigurationNumber = 1,
+        .ConfigurationStrIndex = 0,
+        .ConfigAttributes = 0xA0,
+        .MaxPowerConsumption = 0x64,
+    },
+
+    // --- Interface 0: Mouse (EP2 IN) ---
+    .mouse_interface = {
+        .Header = {.Size = sizeof(USB_Descriptor_Interface_t), .Type = DTYPE_Interface},
+        .InterfaceNumber = 0,
+        .AlternateSetting = 0,
+        .TotalEndpoints = 1,
+        .Class = HID_CSCP_HIDClass,
+        .SubClass = HID_CSCP_BootSubclass,
+        .Protocol = HID_CSCP_MouseBootProtocol,
+        .InterfaceStrIndex = NO_DESCRIPTOR,
+    },
+    .mouse_descriptor = {
+        .mouse_hid = {
+            .Header = {.Size = sizeof(USB_HID_Descriptor_HID_t), .Type = HID_DTYPE_HID},
+            .HIDSpec = 0x0111,
+            .CountryCode = 0x21,
+            .TotalReportDescriptors = 1,
+            .HIDReportType = HID_DTYPE_Report,
+            .HIDReportLength = {79},
+        },
+        .mouse_in_endpoint = {
+            .Header = {.Size = sizeof(USB_Descriptor_Endpoint_t), .Type = DTYPE_Endpoint},
+            .EndpointAddress = 0x82,
+            .Attributes = 0x03,
+            .EndpointSize = 0x0040,
+            .PollingIntervalMS = 1,
+        },
+    },
+
+    // --- Interface 1: Keyboard (EP1 IN) ---
+    .keyboard_interface = {
+        .Header = {.Size = sizeof(USB_Descriptor_Interface_t), .Type = DTYPE_Interface},
+        .InterfaceNumber = 1,
+        .AlternateSetting = 0,
+        .TotalEndpoints = 1,
+        .Class = HID_CSCP_HIDClass,
+        .SubClass = HID_CSCP_BootSubclass,
+        .Protocol = HID_CSCP_KeyboardBootProtocol,
+        .InterfaceStrIndex = NO_DESCRIPTOR,
+    },
+    .keyboard_descriptor = {
+        .keyboard_hid = {
+            .Header = {.Size = sizeof(USB_HID_Descriptor_HID_t), .Type = HID_DTYPE_HID},
+            .HIDSpec = 0x0111,
+            .CountryCode = 0x21,
+            .TotalReportDescriptors = 1,
+            .HIDReportType = HID_DTYPE_Report,
+            .HIDReportLength = {245},
+        },
+        .keyboard_in_endpoint = {
+            .Header = {.Size = sizeof(USB_Descriptor_Endpoint_t), .Type = DTYPE_Endpoint},
+            .EndpointAddress = 0x81,
+            .Attributes = 0x03,
+            .EndpointSize = 0x0040,
+            .PollingIntervalMS = 1,
+        },
+    },
+
+    // --- Interface 2: Vendor/Somatic (EP4 IN + EP5 OUT) ---
+    .somatic_interface = {
+        .Header = {.Size = sizeof(USB_Descriptor_Interface_t), .Type = DTYPE_Interface},
+        .InterfaceNumber = 2,
+        .AlternateSetting = 0,
+        .TotalEndpoints = 2,
+        .Class = HID_CSCP_HIDClass,
+        .SubClass = HID_CSCP_BootSubclass,
+        .Protocol = HID_CSCP_MouseBootProtocol,
+        .InterfaceStrIndex = NO_DESCRIPTOR,
+    },
+    .somatic_descriptor = {
+        .somatic_hid = {
+            .Header = {.Size = sizeof(USB_HID_Descriptor_HID_t), .Type = HID_DTYPE_HID},
+            .HIDSpec = 0x0111,
+            .CountryCode = 0x21,
+            .TotalReportDescriptors = 1,
+            .HIDReportType = HID_DTYPE_Report,
+            .HIDReportLength = {82},
+        },
+        .somatic_in_endpoint = {
+            .Header = {.Size = sizeof(USB_Descriptor_Endpoint_t), .Type = DTYPE_Endpoint},
+            .EndpointAddress = 0x84,
+            .Attributes = 0x03,
+            .EndpointSize = 0x0040,
+            .PollingIntervalMS = 1,
+        },
+        .somatic_out_endpoint = {
+            .Header = {.Size = sizeof(USB_Descriptor_Endpoint_t), .Type = DTYPE_Endpoint},
+            .EndpointAddress = 0x05,
+            .Attributes = 0x03,
+            .EndpointSize = 0x0040,
+            .PollingIntervalMS = 1,
+        },
+    },
+};
+
+const USB_Descriptor_String_t language_desc = {
+    .Header = {
+        .Size = sizeof(USB_Descriptor_Hdr_t) + 2,
+        .Type = DTYPE_String},
+    .UnicodeString = {LANGUAGE_ID_ENG}};
+
+const USB_Descriptor_String_t vendor_desc = {
+    .Header = {
+        .Size = sizeof(USB_Descriptor_Hdr_t) + sizeof(STRING_VENDOR) - 2,
+        .Type = DTYPE_String},
+    .UnicodeString = STRING_VENDOR};
+
+const USB_Descriptor_String_t product_desc = {
+    .Header = {
+        .Size = sizeof(USB_Descriptor_Hdr_t) + sizeof(STRING_PRODUCT) - 2,
+        .Type = DTYPE_String},
+    .UnicodeString = {STRING_PRODUCT}};
+
+const USB_Descriptor_String_t serial_desc = {
+    .Header = {
+        .Size = sizeof(USB_Descriptor_Hdr_t) + sizeof(STRING_SERIAL) - 2,
+        .Type = DTYPE_String},
+    .UnicodeString = {STRING_SERIAL}};
+
 uint8_t usb_ep_data_toggle[8];
 uint8_t tx_packet_buffer[64];
 
-uint8_t usb_hid_state;
+hid_state_t usb_state;
 uint8_t usb_connected;
 uint8_t rf_tx_header_en;
 uint8_t hid_seq_counter;
@@ -47,20 +216,70 @@ static uint32_t crc32_update(uint32_t crc, const uint8_t *data, size_t length)
 
 void usb_connection_poll()
 {
-    if (reg_usb_host_conn & 0x80)
+    uint32_t irq_src = read_reg32(reg_irq_src);
+    uint8_t connection_state = 2;
+
+    if (read_reg8(reg_usb_host_conn) & 0x80)
     {
-        if (reg_irq_src & 8)
+        connection_state = 3;
+        if ((irq_src & 8) != 0)
         {
-            usb_hid_state = (reg_irq_src & 0x20) ? 4 : 1;
+            if (read_reg8(reg_usb_mdev) << 0x1D > -1)
+            {
+                connection_state = 4;
+            }
+            else
+            {
+                connection_state = 1;
+            }
         }
         else
         {
-            usb_hid_state = 3;
+            if (!is_bluetooth_active())
+            {
+                usb_state.conn_state = 1;
+            }
+            else
+            {
+                usb_state.conn_state = 4;
+                /*
+                (*(code *)((int)&USER_NMI + 2))(0,0);
+                rf_2g4_channel_init();
+                rf_2g4_sync_init();
+                usb_poll();
+                sleep_us(1000);
+                usb_poll();
+                rf_2g4_status_check();
+                keyboard_cols_pulse();
+                noop();
+                */
+            }
         }
     }
-    else
+
+    if (usb_state.conn_state > 2)
     {
-        usb_hid_state = 2;
+        if ((irq_src & 8) == 0 && usb_state.disconnect_timer != 0)
+        {
+            usb_state.disconnect_timer = 0;
+        }
+        else if (usb_state.disconnect_timer == 0)
+        {
+            usb_state.disconnect_timer = read_reg32(reg_system_tick) | 1;
+        }
+        else if (12800000 < read_reg32(reg_system_tick) - usb_state.disconnect_timer)
+        {
+            usb_state.disconnect_timer = 0;
+            if (!is_bluetooth_active())
+            {
+                usb_state.conn_state = 1;
+            }
+        }
+    }
+
+    if (connection_state != usb_state.conn_state)
+    {
+        usb_state.conn_state = connection_state;
     }
 }
 
@@ -477,22 +696,50 @@ void hid_handle_flash(hid_rx_packet_t *packet)
 
 void usb_init_hid(void)
 {
-    usbhw_disable_manual_interrupt(FLD_CTRL_EP_AUTO_STD | FLD_CTRL_EP_AUTO_DESC |
-                                   FLD_CTRL_EP_AUTO_CFG);
+    usbhw_enable_manual_interrupt(0xA0);
+    usbhw_set_eps_en(0x36);
 
-    reg_usb_ctrl = 0x36;
     usb_connected = 0;
 
     gpio_set_func(GPIO_PA5, AS_USB);
     gpio_set_func(GPIO_PA6, AS_USB);
 
-    uint8_t val = analog_read(0x0b);
-    analog_write(0x0b, val | 0x7f);
+    analog_write(reg_spi_inv_clk, analog_read(reg_spi_inv_clk) | 0x7F);
+    usb_state.hid_state = 0;
+    usb_state.pad_1 = 0;
+    usb_state.pad_2 = 0;
+    usb_state.pad_3 = 0;
+    usb_state.send_timer = 0;
+}
 
-    usb_hid_state = 0;
+uint8_t *usbdesc_get_device(void)
+{
+    return (uint8_t *)(&device_desc);
+}
 
-    usbhw_enable_manual_interrupt(FLD_CTRL_EP_AUTO_STD | FLD_CTRL_EP_AUTO_DESC |
-                                  FLD_CTRL_EP_AUTO_CFG);
+uint8_t *usbdesc_get_serial(void)
+{
+    return (uint8_t *)(&serial_desc);
+}
+
+uint8_t *usbdesc_get_configuration(void)
+{
+    return (uint8_t *)(&configuration_desc);
+}
+
+uint8_t *usbdesc_get_language(void)
+{
+    return (uint8_t *)(&language_desc);
+}
+
+uint8_t *usbdesc_get_vendor(void)
+{
+    return (uint8_t *)(&vendor_desc);
+}
+
+uint8_t *usbdesc_get_product(void)
+{
+    return (uint8_t *)(&product_desc);
 }
 
 void usb_hid_report_handler(uint8_t report_id, uint8_t len,
@@ -507,6 +754,7 @@ void usb_hid_report_handler(uint8_t report_id, uint8_t len,
 void usb_irq_handler(void)
 {
     // TODO: fill out
+    usb_handle_irq();
 }
 
 void usb_poll(void)

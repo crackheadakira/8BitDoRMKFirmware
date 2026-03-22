@@ -48,3 +48,8 @@ bool is_wireless_mode(void)
 {
     return connection_mode.main_mode != 0;
 }
+
+bool is_bluetooth_active(void)
+{
+    return connection_mode.bt_active;
+}

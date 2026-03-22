@@ -36,3 +36,4 @@ extern connection_mode_t connection_mode;
 
 void conn_mode_init();
 bool is_wireless_mode(void);
+bool is_bluetooth_active(void);

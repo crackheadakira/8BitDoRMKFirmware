@@ -87,7 +87,8 @@ int main(void)
     if (has_mcu_awoken == 0)
     {
         uint32_t ota_flash = ota_program_bootAddr - ota_program_offset;
-        flash_read_page(ota_flash + 24, 4, (unsigned char *)&has_mcu_awoken);
+        uint32_t firmware_buf;
+        flash_read_page(ota_flash + 24, 4, (uint8_t *)&firmware_buf);
         flash_read_page(ota_flash + (has_mcu_awoken - 4), 4, device_state.ptr_peripheral_ctrl);
         flash_read_page(ota_flash + 2, 4, device_state.ptr_io_map);
 

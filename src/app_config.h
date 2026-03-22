@@ -1,5 +1,4 @@
-#ifndef APP_CONFIG_H
-#define APP_CONFIG_H
+#pragma once
 
 #define BOARD_SELECT BOARD_827X_EVK_C1T197A30
 
@@ -22,10 +21,14 @@
 #define REMOTE_IR_ENABLE 0
 
 #define MODULE_USB_ENABLE 1
+#define USB_MOUSE_ENABLE 1
 #define USB_KEYBOARD_ENABLE 1
+#define USB_SOMATIC_ENABLE 1
 
 #define FIRMWARE_MAGIC_NAME "TL 8BiDo"
 #define FIRMWARE_VERSION_LONG "1.3.6r"
 #define FIRMWARE_VERSION_SHORT "1.3.6"
 
-#endif
+#define STRING_VENDOR L"8BitDo"
+#define STRING_PRODUCT L"8BitDo Retro Keyboard"
+#define STRING_SERIAL L"SN1234567890"

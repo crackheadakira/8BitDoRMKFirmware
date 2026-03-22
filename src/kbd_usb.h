@@ -49,7 +49,6 @@ typedef struct __attribute__((packed))
 } hid_tx_packet_t;
 
 extern uint8_t hid_seq_counter;
-extern uint8_t usb_hid_state;
 extern uint8_t usb_connected;
 extern uint8_t rf_tx_header_en;
 extern uint8_t target_bank_id;
@@ -69,3 +68,10 @@ extern uint8_t tx_packet_buffer[64];
 
 void usb_init_hid(void);
 void usb_poll(void);
+
+uint8_t *usbdesc_get_device(void);
+uint8_t *usbdesc_get_serial(void);
+uint8_t *usbdesc_get_configuration(void);
+uint8_t *usbdesc_get_language(void);
+uint8_t *usbdesc_get_vendor(void);
+uint8_t *usbdesc_get_product(void);

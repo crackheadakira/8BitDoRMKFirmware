@@ -44,8 +44,9 @@ uint32_t ble_stack_param_init(void)
     return 0;
 }
 
-void flash_set_bank_addrs(flash_mid_e flash_mid)
+void flash_set_bank_addrs()
 {
+    flash_mid_e flash_mid = flash_read_mid();
     uint32_t flash_capacity = (flash_mid & 0x00FF0000) >> 16;
 
     if (flash_capacity == FLASH_SIZE_512K)
@@ -60,9 +61,10 @@ void flash_set_bank_addrs(flash_mid_e flash_mid)
     }
     else
     {
-        while (1)
-        {
-        } // unsupported flash size
+        // unsupported flash size, for debugging purposes
+        // assume 1MB
+        flash_bank_address_1 = 0xFF000;
+        flash_bank_address_2 = 0xFE000;
     }
 }
 
@@ -144,9 +146,7 @@ int main(void)
     */
 
     flash_lock_by_mid();
-
-    flash_mid_e flash_mid = flash_read_mid();
-    flash_set_bank_addrs(flash_mid);
+    flash_set_bank_addrs();
 
     usb_init_hid();
     irq_enable();

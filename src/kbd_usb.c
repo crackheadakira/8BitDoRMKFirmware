@@ -423,16 +423,16 @@ void hid_send_data_nack(uint8_t param_1)
 static uint32_t verify_firmware_image(void)
 {
     uint32_t firmware_buf;
-    flash_read_page(ota_program_offset + 24, 4, (uint8_t *)&firmware_buf);
+    flash_read_data(ota_program_offset + 24, 4, (uint8_t *)&firmware_buf);
 
     uint32_t num_chunks = (firmware_buf << 8) >> 16;
-    uint32_t crc = 0xFFFFFFFE;
+    uint32_t crc = 0xFFFFFFFF;
 
     uint8_t chunk[0x100];
 
     for (int i = 0; i < num_chunks; i++)
     {
-        flash_read_page(ota_program_offset + 0x100 * i, 0x100, chunk);
+        flash_read_data(ota_program_offset + 0x100 * i, 0x100, chunk);
 
         if ((i == 0) && (chunk[8] == 0xFF))
         {
@@ -445,7 +445,7 @@ static uint32_t verify_firmware_image(void)
     uint32_t remainder = firmware_buf & 0xFF;
     if (remainder != 0)
     {
-        flash_read_page(ota_program_offset + firmware_buf - remainder, remainder,
+        flash_read_data(ota_program_offset + firmware_buf - remainder, remainder,
                         chunk);
         crc = crc32_update(crc, chunk, remainder);
     }
@@ -555,7 +555,7 @@ static void handle_cmd_data(hid_rx_packet_t *packet)
                                packet->data);
             packet_counter += 1;
         }
-        else if ((data_len == 4) && (packet_counter < 0xFFF))
+        else if ((data_len == 4) && (packet_counter < 0x3FFF))
         {
             flash_page_program(ota_program_offset + current_flash_offset, 4,
                                packet->data);
